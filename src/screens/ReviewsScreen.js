@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { theme } from '../theme';
+import { useRecipeStore } from '../store/recipeStore';
 
 const StarRating = ({ rating, size = 16 }) => {
   const stars = [];
@@ -22,7 +23,12 @@ export default function ReviewsScreen({ route, navigation }) {
   const { recipe, reviews: initialReviews } = route.params;
   const insets = useSafeAreaInsets();
   
-  const [reviews, setReviews] = useState(initialReviews || []);
+  const { myReviews, addReview } = useRecipeStore();
+  const storedReviews = myReviews[recipe.id] || [];
+  
+  // Combine stored reviews with initial mock reviews
+  const allReviews = [...storedReviews, ...(initialReviews || [])];
+  
   const [newComment, setNewComment] = useState('');
   const [userRating, setUserRating] = useState(0);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
@@ -60,7 +66,7 @@ export default function ReviewsScreen({ route, navigation }) {
       photo: selectedPhoto,
     };
     
-    setReviews([review, ...reviews]);
+    addReview(recipe.id, review);
     setNewComment('');
     setUserRating(0);
     setSelectedPhoto(null);
@@ -91,7 +97,7 @@ export default function ReviewsScreen({ route, navigation }) {
       <View style={styles.ratingSummary}>
         <Text style={styles.ratingNum}>{recipe.rating?.toFixed(1) || '4.5'}</Text>
         <StarRating rating={recipe.rating || 4.5} size={20} />
-        <Text style={styles.reviewsCount}>({recipe.reviewsCount || 0 + reviews.length} avis)</Text>
+        <Text style={styles.reviewsCount}>({recipe.reviewsCount || 0 + allReviews.length} avis)</Text>
       </View>
 
       {/* Add Review Form */}
@@ -161,7 +167,7 @@ export default function ReviewsScreen({ route, navigation }) {
       </View>
 
       <FlatList
-        data={reviews}
+        data={allReviews}
         keyExtractor={item => item.id}
         renderItem={renderReview}
         ListHeaderComponent={listHeaderElement}

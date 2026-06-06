@@ -19,6 +19,7 @@ export const useRecipeStore = create((set, get) => ({
   userId: null,
   favorites: [],
   ratings: {},
+  myReviews: {}, // object mapping recipeId to an array of review objects
   shoppingList: [],
   cookbooks: DEFAULT_COOKBOOKS,
   
@@ -34,6 +35,7 @@ export const useRecipeStore = create((set, get) => ({
         set({
           favorites: data.favorites || [],
           ratings: data.ratings || {},
+          myReviews: data.myReviews || {},
           shoppingList: data.shoppingList || [],
           cookbooks: data.cookbooks && data.cookbooks.length > 0 ? data.cookbooks : DEFAULT_COOKBOOKS
         });
@@ -41,6 +43,7 @@ export const useRecipeStore = create((set, get) => ({
         // Save to local storage for offline use
         AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data.favorites || []));
         AsyncStorage.setItem(RATINGS_KEY, JSON.stringify(data.ratings || {}));
+        AsyncStorage.setItem('recipe-my-reviews', JSON.stringify(data.myReviews || {}));
         AsyncStorage.setItem(SHOPPING_KEY, JSON.stringify(data.shoppingList || []));
         AsyncStorage.setItem(COOKBOOKS_KEY, JSON.stringify(data.cookbooks || DEFAULT_COOKBOOKS));
       } else {
@@ -55,13 +58,14 @@ export const useRecipeStore = create((set, get) => ({
   },
 
   syncToCloud: async () => {
-    const { userId, favorites, ratings, shoppingList, cookbooks } = get();
+    const { userId, favorites, ratings, myReviews, shoppingList, cookbooks } = get();
     if (!userId) return; // Only sync if logged in
 
     try {
       await setDoc(doc(db, "users", userId), {
         favorites,
         ratings,
+        myReviews,
         shoppingList,
         cookbooks
       }, { merge: true }); // Use merge to prevent overwriting other future fields
@@ -75,6 +79,7 @@ export const useRecipeStore = create((set, get) => ({
       userId: null,
       favorites: [],
       ratings: {},
+      myReviews: {},
       shoppingList: [],
       cookbooks: DEFAULT_COOKBOOKS
     });
@@ -87,6 +92,9 @@ export const useRecipeStore = create((set, get) => ({
       
       const storedRatings = await AsyncStorage.getItem(RATINGS_KEY);
       if (storedRatings) set({ ratings: JSON.parse(storedRatings) });
+
+      const storedReviews = await AsyncStorage.getItem('recipe-my-reviews');
+      if (storedReviews) set({ myReviews: JSON.parse(storedReviews) });
 
       const storedShopping = await AsyncStorage.getItem(SHOPPING_KEY);
       if (storedShopping) set({ shoppingList: JSON.parse(storedShopping) });
@@ -122,10 +130,21 @@ export const useRecipeStore = create((set, get) => ({
 
   // Ratings
   getRating: (id) => get().ratings[id] || 0,
-  setRating: async (id, rating) => {
-    const newRatings = { ...get().ratings, [id]: rating };
+  rateRecipe: async (recipeId, rating) => {
+    const { ratings } = get();
+    const newRatings = { ...ratings, [recipeId]: rating };
     set({ ratings: newRatings });
-    try { await AsyncStorage.setItem(RATINGS_KEY, JSON.stringify(newRatings)); } catch (e) {}
+    AsyncStorage.setItem(RATINGS_KEY, JSON.stringify(newRatings));
+    get().syncToCloud();
+  },
+
+  // Add a review
+  addReview: async (recipeId, review) => {
+    const { myReviews } = get();
+    const recipeReviews = myReviews[recipeId] || [];
+    const updatedReviews = { ...myReviews, [recipeId]: [review, ...recipeReviews] };
+    set({ myReviews: updatedReviews });
+    AsyncStorage.setItem('recipe-my-reviews', JSON.stringify(updatedReviews));
     get().syncToCloud();
   },
 
