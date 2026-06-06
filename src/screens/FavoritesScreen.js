@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Modal, TextInput, Dimensions
+  Modal, TextInput, Dimensions, KeyboardAvoidingView, Platform
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -189,30 +189,35 @@ export default function FavoritesScreen({ navigation }) {
           activeOpacity={1}
           onPress={() => setCreateModalVisible(false)}
         >
-          <View
-            style={[styles.createSheet, { paddingBottom: Math.max(insets.bottom + 10, 24) }]}
-            onStartShouldSetResponder={() => true}
+          <KeyboardAvoidingView 
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+            style={{ width: '100%', justifyContent: 'flex-end' }}
           >
-            <View style={styles.sheetHandle} />
-            <Text style={styles.createTitle}>Nouveau Cookbook</Text>
-            <TextInput
-              style={styles.createInput}
-              placeholder="Nom du cookbook..."
-              placeholderTextColor={colors.textSecondary}
-              value={newTitle}
-              onChangeText={setNewTitle}
-              autoFocus
-              returnKeyType="done"
-              onSubmitEditing={handleCreateCookbook}
-            />
-            <TouchableOpacity
-              style={[styles.createBtn, !newTitle.trim() && { opacity: 0.45 }]}
-              onPress={handleCreateCookbook}
-              disabled={!newTitle.trim()}
+            <View
+              style={[styles.createSheet, { paddingBottom: Math.max(insets.bottom + 10, 24) }]}
+              onStartShouldSetResponder={() => true}
             >
-              <Text style={styles.createBtnText}>Créer</Text>
-            </TouchableOpacity>
-          </View>
+              <View style={styles.sheetHandle} />
+              <Text style={styles.createTitle}>Nouveau Cookbook</Text>
+              <TextInput
+                style={styles.createInput}
+                placeholder="Nom du cookbook..."
+                placeholderTextColor={colors.textSecondary}
+                value={newTitle}
+                onChangeText={setNewTitle}
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={handleCreateCookbook}
+              />
+              <TouchableOpacity
+                style={[styles.createBtn, !newTitle.trim() && { opacity: 0.45 }]}
+                onPress={handleCreateCookbook}
+                disabled={!newTitle.trim()}
+              >
+                <Text style={styles.createBtnText}>Créer</Text>
+              </TouchableOpacity>
+            </View>
+          </KeyboardAvoidingView>
         </TouchableOpacity>
       </Modal>
     </SafeAreaView>

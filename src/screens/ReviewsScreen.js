@@ -85,7 +85,7 @@ export default function ReviewsScreen({ route, navigation }) {
     </View>
   );
 
-  const ListHeader = () => (
+  const listHeaderElement = (
     <View style={styles.headerBox}>
       <Text style={styles.title}>Avis sur {recipe.title}</Text>
       <View style={styles.ratingSummary}>
@@ -164,7 +164,7 @@ export default function ReviewsScreen({ route, navigation }) {
         data={reviews}
         keyExtractor={item => item.id}
         renderItem={renderReview}
-        ListHeaderComponent={ListHeader}
+        ListHeaderComponent={listHeaderElement}
         contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom, 20) }]}
         showsVerticalScrollIndicator={false}
       />
