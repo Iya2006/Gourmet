@@ -194,7 +194,7 @@ export default function HomeScreen({ navigation }) {
     </TouchableOpacity>
   );
 
-  const renderHeroCard = ({ item }) => {
+  const renderHeroCard = ({ item, isTopHero = false }) => {
     const currentLikes = (item.likes || 0) + (isFavorite(item.id) ? 1 : 0);
     return (
       <View style={{ width: SCREEN_WIDTH }}>
@@ -203,7 +203,7 @@ export default function HomeScreen({ navigation }) {
           activeOpacity={0.9}
           onPress={() => navigation.navigate('Details', { recipe: item })}
         >
-          <Animated.View style={[StyleSheet.absoluteFill, {
+          <Animated.View style={[StyleSheet.absoluteFill, isTopHero && {
             transform: [
               { translateY: scrollY.interpolate({ inputRange: [0, 500], outputRange: [0, 500], extrapolate: 'clamp' }) },
               { scale: scrollY.interpolate({ inputRange: [-100, 0], outputRange: [1.2, 1], extrapolateLeft: 'extend', extrapolateRight: 'clamp' }) }
@@ -258,9 +258,8 @@ export default function HomeScreen({ navigation }) {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
       >
-        {/* Carrousel Hero */}
         <View style={styles.heroSection}>
-          <PaginatedCarousel data={heroRecipes} renderItem={renderHeroCard} colors={colors} />
+          <PaginatedCarousel data={heroRecipes} renderItem={(props) => renderHeroCard({ ...props, isTopHero: true })} colors={colors} />
         </View>
 
         <View style={styles.mainContentBackground}>
@@ -339,7 +338,7 @@ export default function HomeScreen({ navigation }) {
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>5 recettes de salades pour l'été</Text>
             </View>
-            <PaginatedCarousel data={[mockRecipes[4]]} renderItem={renderHeroCard} colors={colors} />
+            <PaginatedCarousel data={[mockRecipes[4]]} renderItem={(props) => renderHeroCard({ ...props, isTopHero: false })} colors={colors} />
           </View>
 
           {/* Saison des asperges */}
