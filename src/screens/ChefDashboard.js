@@ -103,7 +103,7 @@ export default function ChefDashboard({ navigation }) {
           </View>
         </View>
         <TouchableOpacity onPress={() => navigation.navigate('MainTabs')} style={[styles.appBtn, { backgroundColor: colors.card }]}>
-          <Ionicons name="close" size={24} color={colors.text} />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
       </View>
 

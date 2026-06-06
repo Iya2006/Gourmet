@@ -52,7 +52,7 @@ function TabNavigator() {
           shadowOpacity: 0,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: Platform.OS === 'web' ? 10 : 12,
           fontWeight: '600',
         },
         tabBarIcon: ({ focused, color, size }) => {
@@ -76,8 +76,8 @@ function TabNavigator() {
     >
       <Tab.Screen name="HomeTab" component={HomeScreen} options={{ tabBarLabel: 'Home' }} />
       <Tab.Screen name="SearchTab" component={SearchScreen} options={{ tabBarLabel: 'Search' }} />
-      <Tab.Screen name="FavoritesTab" component={FavoritesScreen} options={{ tabBarLabel: 'My Recipes' }} />
-      <Tab.Screen name="ShoppingListTab" component={ShoppingListScreen} options={{ tabBarLabel: 'Shopping List' }} />
+      <Tab.Screen name="FavoritesTab" component={FavoritesScreen} options={{ tabBarLabel: 'Favorites' }} />
+      <Tab.Screen name="ShoppingListTab" component={ShoppingListScreen} options={{ tabBarLabel: 'Cart' }} />
       <Tab.Screen name="ProfileTab" component={ProfileScreen} options={{ tabBarLabel: 'Profile' }} />
     </Tab.Navigator>
   );

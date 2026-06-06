@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, Dimensions, Alert, Share
+  ScrollView, Dimensions, Alert, Share, Platform, Animated
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { theme } from '../theme';
 import { incrementRecipeCooks } from '../services/recipeService';
+import { useRecipeStore } from '../store/recipeStore';
 
 const { width } = Dimensions.get('window');
 
@@ -23,16 +24,59 @@ const StarRating = ({ rating, size = 16 }) => {
   return <View style={{ flexDirection: 'row', gap: 2 }}>{stars}</View>;
 };
 
+// ── Toast Notification ───────────────────────────────────────────────
+const Toast = ({ visible, message, slideAnim }) => {
+  if (!visible) return null;
+  return (
+    <Animated.View style={[styles.toastContainer, { transform: [{ translateY: slideAnim }] }]}>
+      <View style={styles.toastContent}>
+        <Ionicons name="checkmark-circle" size={22} color="#FFF" />
+        <Text style={styles.toastText}>{message}</Text>
+      </View>
+    </Animated.View>
+  );
+};
+
 export default function CookingModeScreen({ route, navigation }) {
   const { recipe, calculatedIngredients } = route.params;
   const insets = useSafeAreaInsets();
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [capturedPhoto, setCapturedPhoto] = useState(null);
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const toastSlideAnim = useRef(new Animated.Value(-100)).current;
+
+  // Zustand store for real favorites
+  const { toggleFavorite, isFavorite } = useRecipeStore();
+  const isAlreadyFav = isFavorite(recipe.id);
 
   const steps = recipe.steps || [];
   const totalSteps = steps.length;
   const isLastStep = currentStepIndex >= totalSteps;
   const currentStep = !isLastStep ? steps[currentStepIndex] : null;
+
+  // Show toast with slide-in animation
+  const showToast = (message) => {
+    setToastMessage(message);
+    setToastVisible(true);
+    toastSlideAnim.setValue(-100);
+    Animated.sequence([
+      Animated.spring(toastSlideAnim, {
+        toValue: 0,
+        tension: 80,
+        friction: 10,
+        useNativeDriver: true,
+      }),
+      Animated.delay(2000),
+      Animated.timing(toastSlideAnim, {
+        toValue: -100,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setToastVisible(false);
+    });
+  };
 
   // Get full ingredient string with calculated amounts
   const getFullIngredientString = (ingId) => {
@@ -45,7 +89,6 @@ export default function CookingModeScreen({ route, navigation }) {
   // Timer string helper
   const getStepTime = (step) => {
     if (step?.duration) return `${step.duration} min`;
-    // If no duration, estimate from instruction length
     const words = (step?.instruction || '').split(' ').length;
     if (words > 60) return '15–20 min';
     if (words > 30) return '5–10 min';
@@ -92,18 +135,32 @@ export default function CookingModeScreen({ route, navigation }) {
   };
 
   const handleShare = async () => {
+    const shareMessage = `J'ai cuisiné "${recipe.title}" avec l'app Gourmet ! 🍽️✨`;
     try {
-      await Share.share({
-        message: `J'ai cuisiné "${recipe.title}" avec l'app Chicken Stories ! 🍽️`,
-        url: capturedPhoto || '',
-      });
-    } catch (e) {}
+      if (Platform.OS === 'web') {
+        // Web: use native Web Share API if available, else copy to clipboard
+        if (navigator.share) {
+          await navigator.share({ title: recipe.title, text: shareMessage });
+        } else if (navigator.clipboard) {
+          await navigator.clipboard.writeText(shareMessage);
+          showToast('Message copié dans le presse-papiers !');
+        } else {
+          Alert.alert('Partager', shareMessage);
+        }
+      } else {
+        await Share.share({
+          message: shareMessage,
+          url: capturedPhoto || '',
+        });
+      }
+    } catch (e) {
+      // User cancelled or error
+    }
   };
 
   const handleNextStep = () => {
     setCurrentStepIndex(prev => {
       const nextIndex = prev + 1;
-      // If we just reached the end, increment cooks counter
       if (nextIndex === totalSteps && recipe.id) {
         incrementRecipeCooks(recipe.id);
       }
@@ -111,9 +168,13 @@ export default function CookingModeScreen({ route, navigation }) {
     });
   };
 
-  const handleAddToFavorites = () => {
-    Alert.alert('Ajouté aux favoris !', 'Votre préparation a été sauvegardée dans vos favoris.', [{ text: 'Super !' }]);
-    navigation.goBack();
+  const handleAddToFavorites = async () => {
+    await toggleFavorite(recipe);
+    if (!isAlreadyFav) {
+      showToast('✅ Ajouté aux favoris avec succès !');
+    } else {
+      showToast('Retiré des favoris');
+    }
   };
 
   const imageSource = isLastStep
@@ -124,6 +185,9 @@ export default function CookingModeScreen({ route, navigation }) {
 
   return (
     <View style={[styles.container, { paddingTop: 0 }]}>
+      {/* Toast Notification */}
+      <Toast visible={toastVisible} message={toastMessage} slideAnim={toastSlideAnim} />
+
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
 
         {/* ── Hero Image ─────────────────────────────── */}
@@ -187,9 +251,12 @@ export default function CookingModeScreen({ route, navigation }) {
                 </TouchableOpacity>
               )}
 
-              <TouchableOpacity style={styles.favBtn} onPress={handleAddToFavorites}>
-                <Ionicons name="heart-outline" size={20} color={theme.colors.primary} />
-                <Text style={styles.favBtnText}>Ajouter aux favoris</Text>
+              {/* Favorite button — styled as a proper button, not just underlined text */}
+              <TouchableOpacity style={[styles.favBtn, isAlreadyFav && styles.favBtnActive]} onPress={handleAddToFavorites}>
+                <Ionicons name={isAlreadyFav ? "heart" : "heart-outline"} size={20} color={isAlreadyFav ? "#FFF" : theme.colors.primary} />
+                <Text style={[styles.favBtnText, isAlreadyFav && styles.favBtnTextActive]}>
+                  {isAlreadyFav ? 'Déjà dans les favoris ♥' : 'Ajouter aux favoris'}
+                </Text>
               </TouchableOpacity>
 
               {/* Rating final */}
@@ -321,6 +388,35 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 80,
+  },
+
+  // ── Toast ──
+  toastContainer: {
+    position: 'absolute',
+    top: 60,
+    left: 20,
+    right: 20,
+    zIndex: 999,
+    alignItems: 'center',
+  },
+  toastContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#10B981',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  toastText: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '700',
   },
 
   // ── Image ──
@@ -575,15 +671,28 @@ const styles = StyleSheet.create({
   favBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
+    gap: 10,
     marginTop: 8,
     marginBottom: 32,
+    width: '100%',
+    borderWidth: 2,
+    borderColor: theme.colors.primary,
+    borderRadius: 30,
+    paddingVertical: 12,
+    paddingHorizontal: 28,
+  },
+  favBtnActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
   },
   favBtnText: {
     color: theme.colors.primary,
-    fontWeight: '600',
+    fontWeight: '700',
     fontSize: 15,
-    textDecorationLine: 'underline',
+  },
+  favBtnTextActive: {
+    color: '#FFF',
   },
   finalRatingBox: {
     alignItems: 'center',
