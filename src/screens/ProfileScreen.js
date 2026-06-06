@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert, Modal, FlatList } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert, Modal, FlatList, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -38,21 +38,27 @@ export default function ProfileScreen() {
     loadTheme();
   }, [loadTheme]);
 
-  const handleSignOut = () => {
-    Alert.alert(
-      "Déconnexion",
-      "Voulez-vous vraiment vous déconnecter ?",
-      [
-        { text: "Annuler", style: "cancel" },
-        { 
-          text: "Se déconnecter", 
-          style: "destructive",
-          onPress: async () => {
-            await signOut();
+  const handleSignOut = async () => {
+    if (Platform.OS === 'web') {
+      if (window.confirm("Voulez-vous vraiment vous déconnecter ?")) {
+        await signOut();
+      }
+    } else {
+      Alert.alert(
+        "Déconnexion",
+        "Voulez-vous vraiment vous déconnecter ?",
+        [
+          { text: "Annuler", style: "cancel" },
+          { 
+            text: "Se déconnecter", 
+            style: "destructive",
+            onPress: async () => {
+              await signOut();
+            }
           }
-        }
-      ]
-    );
+        ]
+      );
+    }
   };
 
   const changeLanguage = async (code) => {

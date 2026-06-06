@@ -333,13 +333,7 @@ export default function HomeScreen({ navigation }) {
             />
           </View>
 
-          {/* 5 salades pour l'été */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>5 recettes de salades pour l'été</Text>
-            </View>
-            <PaginatedCarousel data={[mockRecipes[4]]} renderItem={(props) => renderHeroCard({ ...props, isTopHero: false })} colors={colors} />
-          </View>
+
 
           {/* Saison des asperges */}
           <View style={styles.section}>
