@@ -3,6 +3,7 @@ import { View, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useAppTheme } from '../theme';
@@ -44,8 +45,8 @@ function TabNavigator() {
           backgroundColor: colors.background,
           borderTopWidth: 1,
           borderTopColor: colors.border,
-          height: 60,
-          paddingBottom: 8,
+          height: Platform.OS === 'web' ? 65 : 60,
+          paddingBottom: Platform.OS === 'web' ? 10 : 8,
           paddingTop: 8,
           elevation: 0,
           shadowOpacity: 0,

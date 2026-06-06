@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Dimensions, Animated, RefreshControl, StyleSheet as RN
+  Dimensions, Animated, RefreshControl, StyleSheet as RN, Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -39,7 +39,7 @@ const PaginatedCarousel = ({ data, renderItem, colors }) => {
         onScroll={handleScroll}
         scrollEventThrottle={16}
         contentContainerStyle={{ paddingBottom: 16 }}
-        removeClippedSubviews={true}
+        removeClippedSubviews={Platform.OS !== 'web'}
         initialNumToRender={1}
         maxToRenderPerBatch={2}
         windowSize={3}
@@ -286,7 +286,7 @@ export default function HomeScreen({ navigation }) {
                 initialNumToRender={3}
                 maxToRenderPerBatch={3}
                 windowSize={3}
-                removeClippedSubviews={true}
+                removeClippedSubviews={Platform.OS !== 'web'}
               />
             </View>
           )}
@@ -311,7 +311,7 @@ export default function HomeScreen({ navigation }) {
               initialNumToRender={5}
               maxToRenderPerBatch={5}
               windowSize={5}
-              removeClippedSubviews={true}
+              removeClippedSubviews={Platform.OS !== 'web'}
             />
           </View>
 
@@ -330,7 +330,7 @@ export default function HomeScreen({ navigation }) {
               initialNumToRender={5}
               maxToRenderPerBatch={5}
               windowSize={5}
-              removeClippedSubviews={true}
+              removeClippedSubviews={Platform.OS !== 'web'}
             />
           </View>
 
@@ -419,7 +419,7 @@ export default function HomeScreen({ navigation }) {
               initialNumToRender={5}
               maxToRenderPerBatch={5}
               windowSize={5}
-              removeClippedSubviews={true}
+              removeClippedSubviews={Platform.OS !== 'web'}
             />
           </View>
 
