@@ -204,11 +204,11 @@ export default function ProfileScreen() {
 
         {/* Bouton Déconnexion */}
         <TouchableOpacity 
-          style={styles.logoutButton} 
+          style={[styles.logoutButton, { backgroundColor: isDarkMode ? 'rgba(239, 68, 68, 0.15)' : '#FEE2E2' }]} 
           onPress={handleSignOut}
           activeOpacity={0.8}
         >
-          <Ionicons name="log-out-outline" size={22} color="#EF4444" style={{ marginRight: 8 }} />
+          <Ionicons name="log-out-outline" size={22} color="#EF4444" style={{ marginRight: 0 }} />
           <Text style={styles.logoutText}>{t('logout')}</Text>
         </TouchableOpacity>
 
@@ -401,5 +401,20 @@ const styles = StyleSheet.create({
   modalCloseText: {
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 20,
+    padding: 16,
+    borderRadius: 16,
+    marginTop: 10,
+  },
+  logoutText: {
+    color: '#EF4444', // red text
+    fontSize: 16,
+    fontWeight: '700',
+    marginLeft: 8,
   },
 });
