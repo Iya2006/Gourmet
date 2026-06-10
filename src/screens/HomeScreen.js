@@ -9,10 +9,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppTheme } from '../theme';
 import FloatingImportButton from '../components/FloatingImportButton';
 import { fetchAllRecipes, fetchAllChefs } from '../services/recipeService';
-import {
-  mockRecipes, mockChefs, mockQuickLinks,
-  categoryAirFryer, categoryAsparagus, categoryTonight, categoryLatest
-} from '../data/mockRecipes';
 import { useRecipeStore } from '../store/recipeStore';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -91,30 +87,22 @@ export default function HomeScreen({ navigation }) {
   }, []);
 
   // ── Données calculées ──────────────────────────────────────────────────────
-  const heroRecipes = recipes.length >= 2
-    ? [...recipes].sort((a, b) => (b.likes || 0) - (a.likes || 0)).slice(0, 2)
-    : recipes.length === 1
-      ? [recipes[0], mockRecipes[4]]
-      : [mockRecipes[0], mockRecipes[4]];
+  const heroRecipes = recipes.length > 0
+    ? [...recipes].sort((a, b) => (b.likes || 0) - (a.likes || 0)).slice(0, 3)
+    : [];
 
-  const mappedChefs = [
-    ...chefs.map(item => ({
-      ...item,
-      avatar: item.avatar || 'https://i.pravatar.cc/150?u=' + item.id,
-      name: item.name || (item.email ? item.email.split('@')[0] : 'Chef')
-    })),
-    ...mockChefs
-  ];
+  const mappedChefs = chefs.map(item => ({
+    ...item,
+    avatar: item.avatar || 'https://i.pravatar.cc/150?u=' + item.id,
+    name: item.name || (item.email ? item.email.split('@')[0] : 'Chef')
+  }));
 
-  const combinedLatest = [...recipes, ...categoryLatest].reduce((acc, curr) => {
-    if (!acc.find(item => item.id === curr.id)) acc.push(curr);
-    return acc;
-  }, []);
+  const combinedLatest = [...recipes].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 6);
 
-  // ── Extension IA Culinaire (Mock) ──────────────────────────────────────────
-  const aiRecommendations = [...recipes, ...mockRecipes]
-    .filter(r => r.category === 'Africaine' || r.difficulty === 'Moyen')
-    .slice(0, 3);
+  // ── Extension IA Culinaire (Réelle) ──────────────────────────────────────────
+  const aiRecommendations = [...recipes]
+    .filter(r => r.category === 'Africaine' || r.category === 'Guinéenne' || r.difficulty === 'Moyen')
+    .slice(0, 5);
 
   // ── Animation header disparaît au scroll ──────────────────────────────────
   const headerTranslateY = scrollY.interpolate({
@@ -182,15 +170,6 @@ export default function HomeScreen({ navigation }) {
     >
       <Image source={{ uri: item.avatar }} style={styles.chefAvatar} contentFit="cover" />
       <Text style={styles.chefName} numberOfLines={2}>{item.name}</Text>
-    </TouchableOpacity>
-  );
-
-  const renderQuickLink = ({ item }) => (
-    <TouchableOpacity style={styles.quickLinkContainer} activeOpacity={0.8}>
-      <Image source={{ uri: item.image }} style={styles.quickLinkImage} contentFit="cover" />
-      <View style={styles.quickLinkOverlay}>
-        <Text style={styles.quickLinkText}>{item.title}</Text>
-      </View>
     </TouchableOpacity>
   );
 
@@ -333,93 +312,8 @@ export default function HomeScreen({ navigation }) {
             />
           </View>
 
-
-
-          {/* Saison des asperges */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Profitez de la saison des asperges</Text>
-            </View>
-            <FlatList
-              data={categoryAsparagus}
-              keyExtractor={item => item.id}
-              renderItem={renderSmallCard}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalList}
-              snapToInterval={SCREEN_WIDTH * 0.7 + 16}
-              decelerationRate="fast"
-              initialNumToRender={5}
-              maxToRenderPerBatch={5}
-              windowSize={5}
-            />
-          </View>
-
-          {/* Que cuisiner ce soir */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Que cuisiner ce soir</Text>
-            </View>
-            <FlatList
-              data={categoryTonight}
-              keyExtractor={item => item.id}
-              renderItem={renderSmallCard}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalList}
-              snapToInterval={SCREEN_WIDTH * 0.7 + 16}
-              decelerationRate="fast"
-              initialNumToRender={5}
-              maxToRenderPerBatch={5}
-              windowSize={5}
-            />
-          </View>
-
-          {/* Recettes Air Fryer pour débutants */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Recettes Air Fryer pour débutants</Text>
-            </View>
-            <FlatList
-              data={categoryAirFryer}
-              keyExtractor={item => item.id}
-              renderItem={renderSmallCard}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalList}
-              snapToInterval={SCREEN_WIDTH * 0.7 + 16}
-              decelerationRate="fast"
-              initialNumToRender={5}
-              maxToRenderPerBatch={5}
-              windowSize={5}
-            />
-          </View>
-
-          {/* Liens rapides pour vous */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Liens rapides pour vous</Text>
-            </View>
-            <FlatList
-              data={mockQuickLinks}
-              keyExtractor={item => item.id}
-              renderItem={renderQuickLink}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalList}
-              snapToInterval={160 + 16}
-              decelerationRate="fast"
-              initialNumToRender={5}
-              maxToRenderPerBatch={5}
-              windowSize={5}
-              removeClippedSubviews={Platform.OS !== 'web'}
-            />
-          </View>
-
         </View>
       </Animated.ScrollView>
-
-      <FloatingImportButton />
     </View>
   );
 }

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../services/firebaseConfig';
-import { incrementRecipeLikes } from '../services/recipeService';
+import { incrementRecipeLikes, addRecipeReview } from '../services/recipeService';
 
 const STORAGE_KEY = 'recipe-favorites';
 const RATINGS_KEY = 'recipe-ratings';
@@ -146,6 +146,11 @@ export const useRecipeStore = create((set, get) => ({
     set({ myReviews: updatedReviews });
     AsyncStorage.setItem('recipe-my-reviews', JSON.stringify(updatedReviews));
     get().syncToCloud();
+
+    // Also push to public recipe in Firestore
+    if (recipeId && typeof recipeId === 'string' && !recipeId.startsWith('mock-')) {
+      addRecipeReview(recipeId, review);
+    }
   },
 
   // Shopping List

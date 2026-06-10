@@ -13,7 +13,6 @@
 
 import React, { createContext, useContext, useState, useMemo, useCallback, useEffect } from 'react';
 import { fetchAllRecipes } from '../services/recipeService';
-import { mockRecipes } from '../data/mockRecipes';
 
 // 1. Créer le contexte
 export const RecipeContext = createContext(null);
@@ -43,13 +42,7 @@ export function RecipeProvider({ children }) {
 
   useEffect(() => {
     fetchAllRecipes().then((fetched) => {
-      const combined = [...fetched];
-      mockRecipes.forEach(mr => {
-        if (!combined.find(r => r.id === mr.id)) {
-          combined.push(mr);
-        }
-      });
-      setRecipes(combined);
+      setRecipes(fetched);
     });
   }, []);
 

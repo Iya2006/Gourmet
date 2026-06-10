@@ -26,8 +26,11 @@ export default function ReviewsScreen({ route, navigation }) {
   const { myReviews, addReview } = useRecipeStore();
   const storedReviews = myReviews[recipe.id] || [];
   
-  // Combine stored reviews with initial mock reviews
-  const allReviews = [...storedReviews, ...(initialReviews || [])];
+  // Combine stored reviews with initial reviews, filtering duplicates
+  const allReviewsMap = new Map();
+  (initialReviews || []).forEach(r => allReviewsMap.set(r.id, r));
+  storedReviews.forEach(r => allReviewsMap.set(r.id, r));
+  const allReviews = Array.from(allReviewsMap.values()).sort((a, b) => new Date(b.date) - new Date(a.date));
   
   const [newComment, setNewComment] = useState('');
   const [userRating, setUserRating] = useState(0);
@@ -62,7 +65,7 @@ export default function ReviewsScreen({ route, navigation }) {
       avatar: 'https://i.pravatar.cc/80?img=10', // mock user avatar
       rating: userRating || 5,
       text: newComment.trim(),
-      date: "À l'instant",
+      date: new Date().toISOString(),
       photo: selectedPhoto,
     };
     
@@ -80,7 +83,9 @@ export default function ReviewsScreen({ route, navigation }) {
           <Text style={styles.reviewAuthor}>{item.author}</Text>
           <View style={styles.reviewStarsRow}>
             <StarRating rating={item.rating} size={13} />
-            <Text style={styles.reviewDate}>{item.date}</Text>
+            <Text style={styles.reviewDate}>
+              {item.date && item.date.includes('T') ? new Date(item.date).toLocaleDateString('fr-FR') : item.date}
+            </Text>
           </View>
         </View>
       </View>

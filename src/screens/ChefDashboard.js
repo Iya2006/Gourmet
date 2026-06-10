@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl, ActivityIndicator, TextInput, Modal, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl, ActivityIndicator, TextInput, Modal, Alert, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -7,6 +7,7 @@ import { collection, getDocs, query, where, doc, updateDoc, setDoc, getDoc } fro
 import { db } from '../services/firebaseConfig';
 import { useAuthStore } from '../store/authStore';
 import { useAppTheme } from '../theme';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function ChefDashboard({ navigation }) {
   const { user, userProfile } = useAuthStore();
@@ -22,6 +23,23 @@ export default function ChefDashboard({ navigation }) {
   const [bio, setBio] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
+
+  const pickAvatar = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled) {
+        setAvatarUrl(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.log('Error picking avatar:', error);
+    }
+  };
 
   const fetchMyRecipes = useCallback(async () => {
     if (!user) return;
@@ -196,40 +214,50 @@ export default function ChefDashboard({ navigation }) {
 
       {/* Editor Modal */}
       <Modal visible={editProfileVisible} animationType="slide" transparent={true}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Modifier mon Profil</Text>
-            
-            <Text style={[styles.label, { color: colors.textSecondary }]}>URL de la photo de profil</Text>
-            <TextInput
-              style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-              placeholder="https://..."
-              placeholderTextColor={colors.textSecondary}
-              value={avatarUrl}
-              onChangeText={setAvatarUrl}
-            />
-
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Biographie</Text>
-            <TextInput
-              style={[styles.input, styles.textArea, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-              placeholder="Parlez de votre passion..."
-              placeholderTextColor={colors.textSecondary}
-              value={bio}
-              onChangeText={setBio}
-              multiline
-              numberOfLines={4}
-            />
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: colors.background }]} onPress={() => setEditProfileVisible(false)}>
-                <Text style={[styles.modalBtnText, { color: colors.text }]}>Annuler</Text>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Modifier mon Profil</Text>
+              
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Photo de profil</Text>
+              <TouchableOpacity 
+                style={[styles.imagePickerBtn, { borderColor: colors.border, backgroundColor: colors.background }]} 
+                onPress={pickAvatar}
+              >
+                {avatarUrl ? (
+                  <Image source={{ uri: avatarUrl }} style={styles.previewAvatar} />
+                ) : (
+                  <View style={styles.imagePlaceholder}>
+                    <Ionicons name="camera-outline" size={24} color={colors.textSecondary} />
+                    <Text style={[styles.imagePlaceholderText, { color: colors.textSecondary }]}>
+                      Changer la photo
+                    </Text>
+                  </View>
+                )}
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: colors.primary }]} onPress={handleSaveProfile} disabled={savingProfile}>
-                {savingProfile ? <ActivityIndicator color="#FFF" /> : <Text style={[styles.modalBtnText, { color: '#FFF' }]}>Enregistrer</Text>}
-              </TouchableOpacity>
+
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Biographie</Text>
+              <TextInput
+                style={[styles.input, styles.textArea, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+                placeholder="Parlez de votre passion..."
+                placeholderTextColor={colors.textSecondary}
+                value={bio}
+                onChangeText={setBio}
+                multiline
+                numberOfLines={4}
+              />
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity style={[styles.modalBtn, { backgroundColor: colors.background }]} onPress={() => setEditProfileVisible(false)}>
+                  <Text style={[styles.modalBtnText, { color: colors.text }]}>Annuler</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.modalBtn, { backgroundColor: colors.primary }]} onPress={handleSaveProfile} disabled={savingProfile}>
+                  {savingProfile ? <ActivityIndicator color="#FFF" /> : <Text style={[styles.modalBtnText, { color: '#FFF' }]}>Enregistrer</Text>}
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        </View>
+          </KeyboardAvoidingView>
+        </TouchableWithoutFeedback>
       </Modal>
     </SafeAreaView>
   );
@@ -274,6 +302,13 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 15, paddingVertical: 14, fontSize: 15 },
   textArea: { height: 100, textAlignVertical: 'top' },
   modalActions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 30, gap: 15 },
-  modalBtn: { flex: 1, paddingVertical: 16, borderRadius: 14, alignItems: 'center' },
-  modalBtnText: { fontSize: 16, fontWeight: 'bold' }
+  modalBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
+  modalBtnText: { fontSize: 14, fontWeight: '700' },
+  imagePickerBtn: {
+    borderWidth: 1, borderStyle: 'dashed', borderRadius: 12, overflow: 'hidden',
+    height: 80, justifyContent: 'center', alignItems: 'center', marginBottom: 15,
+  },
+  previewAvatar: { width: 80, height: 80, borderRadius: 40 },
+  imagePlaceholder: { alignItems: 'center', justifyContent: 'center' },
+  imagePlaceholderText: { marginTop: 4, fontSize: 12, fontWeight: '500' }
 });

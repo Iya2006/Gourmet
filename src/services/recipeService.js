@@ -1,4 +1,4 @@
-import { doc, updateDoc, increment, collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
+import { doc, updateDoc, increment, collection, getDocs, query, where, orderBy, limit, arrayUnion } from 'firebase/firestore';
 import { db } from './firebaseConfig';
 
 /**
@@ -45,6 +45,20 @@ export const incrementRecipeLikes = async (recipeId, delta = 1) => {
     });
   } catch (e) {
     // Silently fail for mock recipes
+  }
+};
+
+/**
+ * Add a review to a recipe in Firestore.
+ */
+export const addRecipeReview = async (recipeId, review) => {
+  if (!recipeId) return;
+  try {
+    await updateDoc(doc(db, 'recipes', recipeId), {
+      reviews: arrayUnion(review)
+    });
+  } catch (e) {
+    console.error('addRecipeReview error', e);
   }
 };
 

@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { collection, addDoc } from 'firebase/firestore';
 import { db } from '../services/firebaseConfig';
 import { useAuthStore } from '../store/authStore';
 import { useAppTheme } from '../theme';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function AddRecipeScreen({ navigation }) {
   const { user, userProfile } = useAuthStore();
@@ -36,6 +37,23 @@ export default function AddRecipeScreen({ navigation }) {
 
   const [saving, setSaving] = useState(false);
 
+  const pickImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled) {
+        setImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.log('Error picking image:', error);
+    }
+  };
+
   // Array Handlers
   const addIngredient = () => setIngredients([...ingredients, { name: '', amount: '', unit: '' }]);
   const updateIngredient = (index, field, value) => {
@@ -60,6 +78,23 @@ export default function AddRecipeScreen({ navigation }) {
     setSteps(newSteps);
   };
   const removeStep = (index) => setSteps(steps.filter((_, i) => i !== index));
+
+  const pickStepImage = async (index) => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled) {
+        updateStep(index, 'image', result.assets[0].uri);
+      }
+    } catch (error) {
+      console.log('Error picking step image:', error);
+    }
+  };
 
   const handleSave = async () => {
     if (!title || !category || !prepTime || !cookTime) {
@@ -157,9 +192,15 @@ export default function AddRecipeScreen({ navigation }) {
       </View>
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        <ScrollView style={styles.form} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-          
-          {/* 1. INFORMATIONS GÉNÉRALES */}
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <ScrollView 
+            style={styles.form} 
+            showsVerticalScrollIndicator={false} 
+            contentContainerStyle={{ paddingBottom: 100 }}
+            keyboardShouldPersistTaps="handled"
+          >
+            
+            {/* 1. INFORMATIONS GÉNÉRALES */}
           {renderSectionTitle("Informations Générales", "information-circle")}
           
           <Text style={[styles.label, { color: colors.textSecondary }]}>Titre du plat *</Text>
@@ -183,12 +224,22 @@ export default function AddRecipeScreen({ navigation }) {
             value={description} onChangeText={setDescription} multiline numberOfLines={3}
           />
 
-          <Text style={[styles.label, { color: colors.textSecondary }]}>Image (URL) - Laisser vide pour l'image par défaut</Text>
-          <TextInput
-            style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
-            placeholder="https://..." placeholderTextColor={colors.textSecondary}
-            value={image} onChangeText={setImage}
-          />
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Image du plat *</Text>
+          <TouchableOpacity 
+            style={[styles.imagePickerBtn, { borderColor: colors.border, backgroundColor: colors.card }]} 
+            onPress={pickImage}
+          >
+            {image ? (
+              <Image source={{ uri: image }} style={styles.previewImage} />
+            ) : (
+              <View style={styles.imagePlaceholder}>
+                <Ionicons name="camera-outline" size={32} color={colors.textSecondary} />
+                <Text style={[styles.imagePlaceholderText, { color: colors.textSecondary }]}>
+                  Ajouter une photo depuis la galerie
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
 
           {/* 2. TEMPS ET DIFFICULTÉ */}
           <View style={styles.spacer} />
@@ -305,11 +356,21 @@ export default function AddRecipeScreen({ navigation }) {
                 placeholder="Instruction pour cette étape..." placeholderTextColor={colors.textSecondary} 
                 value={step.instruction} onChangeText={(val) => updateStep(idx, 'instruction', val)} multiline numberOfLines={3} 
               />
-              <TextInput 
-                style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }]} 
-                placeholder="URL de l'image (Optionnel)" placeholderTextColor={colors.textSecondary} 
-                value={step.image} onChangeText={(val) => updateStep(idx, 'image', val)} 
-              />
+              <TouchableOpacity 
+                style={[styles.imagePickerBtn, { borderColor: colors.border, backgroundColor: colors.background }]} 
+                onPress={() => pickStepImage(idx)}
+              >
+                {step.image ? (
+                  <Image source={{ uri: step.image }} style={styles.previewImage} />
+                ) : (
+                  <View style={styles.imagePlaceholder}>
+                    <Ionicons name="camera-outline" size={24} color={colors.textSecondary} />
+                    <Text style={[styles.imagePlaceholderText, { color: colors.textSecondary }]}>
+                      Ajouter une photo (Optionnel)
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
             </View>
           ))}
           <TouchableOpacity onPress={addStep} style={styles.addBtn}>
@@ -360,5 +421,12 @@ const styles = StyleSheet.create({
   stepHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
   stepTitle: { fontWeight: 'bold', fontSize: 16 },
   submitBtn: { paddingVertical: 16, borderRadius: 14, alignItems: 'center', marginTop: 20, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 5 },
-  submitText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' }
+  submitText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  imagePickerBtn: {
+    borderWidth: 1, borderStyle: 'dashed', borderRadius: 12, overflow: 'hidden',
+    height: 150, justifyContent: 'center', alignItems: 'center', marginTop: 10,
+  },
+  previewImage: { width: '100%', height: '100%' },
+  imagePlaceholder: { alignItems: 'center', justifyContent: 'center' },
+  imagePlaceholderText: { marginTop: 8, fontSize: 14, fontWeight: '500' }
 });
