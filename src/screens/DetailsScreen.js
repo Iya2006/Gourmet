@@ -1,5 +1,6 @@
-import React, { useState, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, FlatList, Share, Animated, TextInput, Linking } from 'react-native';
+import YoutubePlayer from 'react-native-youtube-iframe';
+import React, { useState, useMemo, useRef } from 'react';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -85,6 +86,16 @@ export default function DetailsScreen({ route, navigation }) {
   // Animations
   const scrollY = useRef(new Animated.Value(0)).current;
 
+  // --- State for Video ---
+  const [showVideo, setShowVideo] = useState(false);
+  
+  const youtubeId = useMemo(() => {
+    if (!recipe.youtubeUrl) return null;
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = recipe.youtubeUrl.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+  }, [recipe.youtubeUrl]);
+
   // Header Animation
   const headerOpacity = scrollY.interpolate({
     inputRange: [0, 150],
@@ -156,29 +167,44 @@ export default function DetailsScreen({ route, navigation }) {
         scrollEventThrottle={16}
       >
         
-        {/* ════════════ HERO IMAGE ════════════ */}
+        {/* ════════════ HERO IMAGE / VIDEO ════════════ */}
         <View style={styles.imageContainer}>
-          <Image source={{ uri: recipe.image }} style={styles.heroImage} contentFit="cover" />
-          
-          {/* Back Button on the image */}
+          {showVideo && youtubeId ? (
+            <View style={{ width: '100%', height: '100%', backgroundColor: '#000', paddingTop: Math.max(insets.top, 0) }}>
+              <YoutubePlayer
+                height={300}
+                play={true}
+                videoId={youtubeId}
+                onChangeState={(state) => {
+                  if (state === 'ended') setShowVideo(false);
+                }}
+              />
+            </View>
+          ) : (
+            <>
+              <Image source={{ uri: recipe.image }} style={styles.heroImage} contentFit="cover" />
+              
+              {/* Youtube Play Button Overlay */}
+              {youtubeId && (
+                <TouchableOpacity 
+                  style={styles.youtubePlayOverlay} 
+                  onPress={() => setShowVideo(true)}
+                >
+                  <View style={styles.youtubePlayCircle}>
+                    <Ionicons name="play" size={32} color="#FFF" style={{ marginLeft: 4 }} />
+                  </View>
+                </TouchableOpacity>
+              )}
+            </>
+          )}
+
+          {/* Back Button on the image - always visible */}
           <TouchableOpacity 
-            style={[styles.backBtnOnImage, { top: Math.max(insets.top, 12) }]} 
+            style={[styles.backBtnOnImage, { top: Math.max(insets.top, 12), zIndex: 10 }]} 
             onPress={() => navigation.goBack()}
           >
             <Ionicons name="chevron-back" size={26} color="#1A1A1A" />
           </TouchableOpacity>
-
-          {/* Youtube Play Button Overlay */}
-          {recipe.youtubeUrl && (
-            <TouchableOpacity 
-              style={styles.youtubePlayOverlay} 
-              onPress={() => Linking.openURL(recipe.youtubeUrl).catch(err => console.error("Couldn't load page", err))}
-            >
-              <View style={styles.youtubePlayCircle}>
-                <Ionicons name="play" size={32} color="#FFF" style={{ marginLeft: 4 }} />
-              </View>
-            </TouchableOpacity>
-          )}
         </View>
 
         {/* ════════════ TITLE & RATING ════════════ */}
