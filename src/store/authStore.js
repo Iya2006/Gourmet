@@ -11,6 +11,7 @@ import { useRecipeStore } from './recipeStore';
 export const useAuthStore = create((set, get) => ({
   user: null,
   userProfile: null, // Holds the firestore document with role
+  preferences: { diets: [], cuisines: [] }, // User filters
   isLoading: true, // true by default while waiting for initial auth state
   error: null,
 
@@ -24,11 +25,14 @@ export const useAuthStore = create((set, get) => ({
         const docSnap = await getDoc(docRef);
         
         let profile = { role: 'user' }; // default fallback
+        let prefs = { diets: [], cuisines: [] };
         if (docSnap.exists()) {
-          profile = docSnap.data();
+          const data = docSnap.data();
+          profile = data;
+          prefs = data.preferences || prefs;
         }
         
-        set({ user, userProfile: profile, isLoading: false, error: null });
+        set({ user, userProfile: profile, preferences: prefs, isLoading: false, error: null });
 
         // Fetch user data (favorites, etc) from Firestore and sync locally
         await useRecipeStore.getState().syncFromCloud(user.uid);
@@ -110,6 +114,20 @@ export const useAuthStore = create((set, get) => ({
     } catch (error) {
       console.error("Sign out error:", error);
       set({ error: "Erreur lors de la déconnexion", isLoading: false });
+    }
+  },
+
+  // Update preferences
+  updatePreferences: async (newPrefs) => {
+    const { user, preferences } = get();
+    if (!user) return;
+    const updatedPrefs = { ...preferences, ...newPrefs };
+    set({ preferences: updatedPrefs });
+    try {
+      const { doc, setDoc } = await import('firebase/firestore');
+      await setDoc(doc(db, "users", user.uid), { preferences: updatedPrefs }, { merge: true });
+    } catch (e) {
+      console.error('Erreur save prefs', e);
     }
   },
 

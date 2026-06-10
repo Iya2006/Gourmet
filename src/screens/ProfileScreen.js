@@ -10,22 +10,19 @@ import { useAuthStore } from '../store/authStore';
 import { useThemeStore } from '../store/themeStore';
 
 export default function ProfileScreen() {
-  const { user, userProfile, signOut } = useAuthStore();
+  const { user, userProfile, preferences, updatePreferences, signOut } = useAuthStore();
   const navigation = useNavigation();
   const { colors, isDarkMode } = useAppTheme();
   const { toggleTheme, loadTheme } = useThemeStore();
   const { t, i18n } = useTranslation();
 
   const [dietModalVisible, setDietModalVisible] = useState(false);
-  const [selectedDiet, setSelectedDiet] = useState('Aucun');
-
   const [cuisineModalVisible, setCuisineModalVisible] = useState(false);
-  const [selectedCuisine, setSelectedCuisine] = useState('Toutes');
 
   const [languageModalVisible, setLanguageModalVisible] = useState(false);
 
-  const diets = ['Aucun', 'Végétarien', 'Vegan', 'Sans gluten', 'Keto'];
-  const cuisines = ['Toutes', 'Française', 'Italienne', 'Asiatique', 'Africaine', 'Mexicaine'];
+  const diets = ['Végétarien', 'Vegan', 'Sans gluten', 'Keto', 'Halal', 'Sans produits laitiers'];
+  const cuisines = ['Française', 'Italienne', 'Asiatique', 'Africaine', 'Mexicaine', 'Américaine', 'Indienne', 'Camerounaise', 'Sénégalaise'];
   
   const languages = [
     { code: 'en', label: 'English' },
@@ -98,45 +95,57 @@ export default function ProfileScreen() {
     </TouchableOpacity>
   );
 
-  const SelectionModal = ({ visible, title, data, selectedValue, onSelect, onClose }) => (
-    <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
-          <Text style={[styles.modalTitle, { color: colors.text }]}>{title}</Text>
-          <FlatList
-            data={data}
-            keyExtractor={(item, index) => index.toString()}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[styles.modalItem, selectedValue === (item.label || item) && { backgroundColor: colors.primary + '10' }]}
-                onPress={() => {
-                  if (item.code) {
-                    onSelect(item.code);
-                  } else {
-                    onSelect(item);
-                  }
-                }}
-              >
-                <Text style={[
-                  styles.modalItemText, 
-                  { color: colors.text },
-                  selectedValue === (item.label || item) && { color: colors.primary, fontWeight: 'bold' }
-                ]}>
-                  {item.label || item}
-                </Text>
-                {selectedValue === (item.label || item) && (
-                  <Ionicons name="checkmark" size={20} color={colors.primary} />
-                )}
-              </TouchableOpacity>
-            )}
-          />
-          <TouchableOpacity style={[styles.modalCloseButton, { backgroundColor: colors.background }]} onPress={onClose}>
-            <Text style={[styles.modalCloseText, { color: colors.text }]}>Fermer</Text>
-          </TouchableOpacity>
+  const SelectionModal = ({ visible, title, data, selectedValue, onSelect, onClose, isMulti }) => {
+    const isSelected = (item) => {
+      if (isMulti) {
+        return Array.isArray(selectedValue) && selectedValue.includes(item.label || item);
+      }
+      return selectedValue === (item.label || item);
+    };
+
+    return (
+      <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>{title}</Text>
+            <FlatList
+              data={data}
+              keyExtractor={(item, index) => index.toString()}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[styles.modalItem, isSelected(item) && { backgroundColor: colors.primary + '10' }]}
+                  onPress={() => {
+                    if (item.code) {
+                      onSelect(item.code); // Language uses single select with code
+                    } else {
+                      onSelect(item.label || item);
+                    }
+                  }}
+                >
+                  <Text style={[
+                    styles.modalItemText, 
+                    { color: colors.text },
+                    isSelected(item) && { color: colors.primary, fontWeight: 'bold' }
+                  ]}>
+                    {item.label || item}
+                  </Text>
+                  {isSelected(item) && (
+                    <Ionicons name={isMulti ? "checkbox" : "checkmark"} size={20} color={colors.primary} />
+                  )}
+                  {!isSelected(item) && isMulti && (
+                    <Ionicons name="square-outline" size={20} color={colors.textSecondary} />
+                  )}
+                </TouchableOpacity>
+              )}
+            />
+            <TouchableOpacity style={[styles.modalCloseButton, { backgroundColor: colors.background }]} onPress={onClose}>
+              <Text style={[styles.modalCloseText, { color: colors.text }]}>Fermer</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-    </Modal>
-  );
+      </Modal>
+    );
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.backgroundSecondary }]} edges={['top', 'left', 'right']}>
@@ -178,9 +187,19 @@ export default function ProfileScreen() {
           <View style={[styles.card, { backgroundColor: colors.card }]}>
             <SettingRow icon="mail-outline" title={t('email')} value={user?.email || t('notSpecified')} color={colors.text} />
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
-            <SettingRow icon="restaurant-outline" title={t('diet')} value={selectedDiet} onPress={() => setDietModalVisible(true)} />
+            <SettingRow 
+              icon="restaurant-outline" 
+              title={t('diet')} 
+              value={preferences?.diets?.length > 0 ? `${preferences.diets.length} sélectionné(s)` : 'Aucun'} 
+              onPress={() => setDietModalVisible(true)} 
+            />
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
-            <SettingRow icon="earth-outline" title={t('cuisines')} value={selectedCuisine} onPress={() => setCuisineModalVisible(true)} />
+            <SettingRow 
+              icon="earth-outline" 
+              title={t('cuisines')} 
+              value={preferences?.cuisines?.length > 0 ? `${preferences.cuisines.length} sélectionnée(s)` : 'Toutes'} 
+              onPress={() => setCuisineModalVisible(true)} 
+            />
           </View>
         </View>
 
@@ -220,16 +239,26 @@ export default function ProfileScreen() {
         visible={dietModalVisible} 
         title={t('selectDiet')} 
         data={diets} 
-        selectedValue={selectedDiet} 
-        onSelect={(val) => { setSelectedDiet(val); setDietModalVisible(false); }} 
+        selectedValue={preferences?.diets || []}
+        isMulti={true}
+        onSelect={(val) => {
+          const current = preferences?.diets || [];
+          const newArray = current.includes(val) ? current.filter(item => item !== val) : [...current, val];
+          updatePreferences({ diets: newArray });
+        }} 
         onClose={() => setDietModalVisible(false)} 
       />
       <SelectionModal 
         visible={cuisineModalVisible} 
         title={t('selectCuisine')} 
         data={cuisines} 
-        selectedValue={selectedCuisine} 
-        onSelect={(val) => { setSelectedCuisine(val); setCuisineModalVisible(false); }} 
+        selectedValue={preferences?.cuisines || []}
+        isMulti={true}
+        onSelect={(val) => {
+          const current = preferences?.cuisines || [];
+          const newArray = current.includes(val) ? current.filter(item => item !== val) : [...current, val];
+          updatePreferences({ cuisines: newArray });
+        }} 
         onClose={() => setCuisineModalVisible(false)} 
       />
       <SelectionModal 

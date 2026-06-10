@@ -155,8 +155,18 @@ export default function DetailsScreen({ route, navigation }) {
     return allRecipes.filter(r => r.id !== recipe.id).slice(0, 4);
   }, [recipe.id, allRecipes]);
 
+  // Combine local and remote reviews
+  const { myReviews } = useRecipeStore();
+  const localReviews = myReviews[recipe.id] || [];
+  const combinedReviews = useMemo(() => {
+    const map = new Map();
+    (recipe.reviews || []).forEach(r => map.set(r.id, r));
+    localReviews.forEach(r => map.set(r.id, r));
+    return Array.from(map.values()).sort((a, b) => new Date(b.date) - new Date(a.date));
+  }, [recipe.reviews, localReviews]);
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Animated.ScrollView 
         showsVerticalScrollIndicator={false} 
         contentContainerStyle={styles.scrollContent}
@@ -293,21 +303,19 @@ export default function DetailsScreen({ route, navigation }) {
         {/* ════════════ REVIEWS SECTION ════════════ */}
         <View style={styles.reviewsSection}>
           <View style={styles.reviewsHeader}>
-            <View>
-              <Text style={styles.sectionTitle}>Avis</Text>
-              <Text style={styles.reviewsSubtext}>
-                {recipe.reviewsCount || 0} commentaire{(recipe.reviewsCount || 0) !== 1 ? 's' : ''}
-              </Text>
+            <View style={styles.reviewScoreBox}>
+              <Text style={styles.reviewScoreNum}>{recipe.rating > 0 ? recipe.rating.toFixed(1) : '0.0'}</Text>
+              <Text style={styles.reviewTotal}>({combinedReviews.length} avis)</Text>
             </View>
-            <TouchableOpacity onPress={() => navigation.navigate('Reviews', { recipe, reviews: recipe.reviews || [] })}>
+            <TouchableOpacity onPress={() => navigation.navigate('Reviews', { recipe, reviews: combinedReviews })}>
               <Text style={styles.readLink}>Lire ou Ajouter</Text>
             </TouchableOpacity>
           </View>
           
           {/* Review thumbnails */}
-          {recipe.reviews && recipe.reviews.filter(r => r.photo).length > 0 && (
+          {combinedReviews.filter(r => r.photo).length > 0 && (
             <View style={styles.reviewThumbnails}>
-              {recipe.reviews.filter(r => r.photo).slice(0, 4).map((r, idx, arr) => (
+              {combinedReviews.filter(r => r.photo).slice(0, 4).map((r, idx, arr) => (
                 <View key={idx} style={styles.reviewThumbContainer}>
                   <Image source={{ uri: r.photo }} style={styles.reviewThumb} contentFit="cover" />
                   {idx === 3 && arr.length > 4 && (
@@ -490,13 +498,18 @@ export default function DetailsScreen({ route, navigation }) {
       </Animated.ScrollView>
 
       {/* ════════════ STICKY HEADER (appears on scroll) ════════════ */}
-      <Animated.View style={[styles.stickyHeader, { paddingTop: Math.max(insets.top, 8), opacity: headerOpacity }]}>
-        <TouchableOpacity style={styles.stickyHeaderBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={24} color="#1A1A1A" />
+      <Animated.View style={[styles.stickyHeader, { 
+        paddingTop: Math.max(insets.top, 8), 
+        opacity: headerOpacity,
+        backgroundColor: theme.colors.card,
+        borderBottomColor: theme.colors.border
+      }]}>
+        <TouchableOpacity style={[styles.stickyHeaderBtn, { backgroundColor: theme.colors.background }]} onPress={() => navigation.goBack()}>
+          <Ionicons name="chevron-back" size={24} color={theme.colors.text} />
         </TouchableOpacity>
         <View style={styles.stickyHeaderRight}>
-          <TouchableOpacity style={styles.stickyHeaderBtn} onPress={handleShare}>
-            <Ionicons name="share-social-outline" size={22} color="#555" />
+          <TouchableOpacity style={[styles.stickyHeaderBtn, { backgroundColor: theme.colors.background }]} onPress={handleShare}>
+            <Ionicons name="share-social-outline" size={22} color={theme.colors.textSecondary} />
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.stickyHeaderBtn, isFav && { backgroundColor: theme.colors.primary }]} 

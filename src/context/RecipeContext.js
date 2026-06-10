@@ -13,6 +13,7 @@
 
 import React, { createContext, useContext, useState, useMemo, useCallback, useEffect } from 'react';
 import { fetchAllRecipes } from '../services/recipeService';
+import { useAuthStore } from '../store/authStore';
 
 // 1. Créer le contexte
 export const RecipeContext = createContext(null);
@@ -34,6 +35,8 @@ export function RecipeProvider({ children }) {
   const [selectedCategory, setSelectedCategory] = useState('Tous');
   const [selectedDifficulty, setSelectedDifficulty] = useState('Tous');
   const [selectedDuration, setSelectedDuration]     = useState('Tous'); // 'Tous' | '<15' | '<30' | '<60' | '60+'
+
+  const preferences = useAuthStore(state => state.preferences);
 
   // ── Catégories disponibles (CDC §3 — inclus Africain, Healthy) ──
   const CATEGORIES = ['Tous', 'Africain', 'Healthy', 'Dessert', 'Végétarien', 'Rapide', 'Soupe', 'Pâtes'];
@@ -107,8 +110,33 @@ export function RecipeProvider({ children }) {
       });
     }
 
+    // Filtre global par régimes (Profil de l'utilisateur)
+    if (preferences?.diets && preferences.diets.length > 0) {
+      result = result.filter(r => {
+        if (!r.tags) return false;
+        // La recette doit inclure au moins l'un des régimes sélectionnés, ou tous ?
+        // Souvent, si on sélectionne "Vegan" et "Sans gluten", on veut voir les recettes qui sont soit vegan soit sans gluten.
+        // Ou bien on veut les recettes qui sont à la fois vegan ET sans gluten.
+        // Faisons une intersection stricte (ET) : une recette doit respecter TOUS les régimes cochés.
+        return preferences.diets.every(diet => 
+          r.tags.map(normalize).includes(normalize(diet))
+        );
+      });
+    }
+
+    // Filtre global par cuisines (Profil de l'utilisateur)
+    if (preferences?.cuisines && preferences.cuisines.length > 0) {
+      result = result.filter(r => {
+        // La recette doit appartenir à l'une des cuisines sélectionnées (OU)
+        return preferences.cuisines.some(cuisine => {
+          const c = normalize(cuisine);
+          return normalize(r.category) === c || (r.tags && r.tags.map(normalize).includes(c));
+        });
+      });
+    }
+
     return result;
-  }, [recipes, search, selectedCategory, selectedDifficulty, selectedDuration]);
+  }, [recipes, search, selectedCategory, selectedDifficulty, selectedDuration, preferences]);
 
   // ── Actions ──────────────────────────────────────────────────────
   const resetFilters = useCallback(() => {

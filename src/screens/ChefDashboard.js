@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl, ActivityIndicator, TextInput, Modal, Alert, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { collection, getDocs, query, where, doc, updateDoc, setDoc, getDoc, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, updateDoc, setDoc, getDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../services/firebaseConfig';
 import { useAuthStore } from '../store/authStore';
 import { useAppTheme } from '../theme';
@@ -97,9 +98,11 @@ export default function ChefDashboard({ navigation }) {
     );
   };
 
-  useEffect(() => {
-    fetchMyRecipes();
-  }, [fetchMyRecipes]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchMyRecipes();
+    }, [fetchMyRecipes])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -114,11 +117,26 @@ export default function ChefDashboard({ navigation }) {
         bio: bio.trim(),
         avatar: avatarUrl.trim()
       });
-      // Optionally update recipes with new avatar
-      Alert.alert("Succès", "Profil mis à jour avec succès");
+
+      // Mettre à jour toutes les recettes publiées par ce chef pour refléter la nouvelle bio et le nouvel avatar
+      const q = query(collection(db, 'recipes'), where('authorId', '==', user.uid));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        const batch = writeBatch(db);
+        snap.docs.forEach((recipeDoc) => {
+          batch.update(recipeDoc.ref, {
+            authorBio: bio.trim(),
+            authorAvatar: avatarUrl.trim()
+          });
+        });
+        await batch.commit();
+      }
+
+      Alert.alert("Succès", "Profil mis à jour avec succès et synchronisé avec vos recettes !");
       setEditProfileVisible(false);
       fetchMyRecipes(); // refresh
     } catch (e) {
+      console.error(e);
       Alert.alert("Erreur", "Impossible de mettre à jour le profil");
     } finally {
       setSavingProfile(false);
