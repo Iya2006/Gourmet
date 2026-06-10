@@ -312,6 +312,27 @@ export default function HomeScreen({ navigation }) {
             />
           </View>
 
+          {/* Toutes nos recettes */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Toutes nos recettes</Text>
+            </View>
+            <FlatList
+              data={recipes}
+              keyExtractor={item => item.id + '-all'}
+              renderItem={renderSmallCard}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalList}
+              snapToInterval={SCREEN_WIDTH * 0.7 + 16}
+              decelerationRate="fast"
+              initialNumToRender={5}
+              maxToRenderPerBatch={5}
+              windowSize={5}
+              removeClippedSubviews={Platform.OS !== 'web'}
+            />
+          </View>
+
         </View>
       </Animated.ScrollView>
     </View>

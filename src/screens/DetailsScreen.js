@@ -242,14 +242,14 @@ export default function DetailsScreen({ route, navigation }) {
           <View style={styles.authorSection}>
             <View style={styles.authorRow}>
               <Image 
-                source={{ uri: recipe.author?.avatar || 'https://randomuser.me/api/portraits/women/44.jpg' }} 
+                source={{ uri: recipe.authorAvatar || recipe.author?.avatar || 'https://images.unsplash.com/photo-1531384441138-2736e62e0919?w=400&q=80' }} 
                 style={styles.authorAvatar} 
                 contentFit="cover" 
               />
               <View style={styles.authorInfo}>
-                <Text style={styles.authorName}>{recipe.author?.name || 'Chef inconnu'}</Text>
-                <Text style={styles.authorRole}>{recipe.author?.role || 'Chef'}</Text>
-                <Text style={styles.authorLink}>instagram.com/recettes...</Text>
+                <Text style={styles.authorName}>{recipe.authorName || recipe.author?.name || 'Chef Gourmet'}</Text>
+                <Text style={styles.authorRole}>{recipe.author?.role || 'Chef Cuistot'}</Text>
+                <Text style={styles.authorLink}>Découvrir son profil</Text>
               </View>
             </View>
             
