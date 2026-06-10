@@ -386,6 +386,7 @@ export default function AddRecipeScreen({ navigation }) {
           </TouchableOpacity>
 
         </ScrollView>
+        </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
