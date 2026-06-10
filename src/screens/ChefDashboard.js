@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl, A
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { collection, getDocs, query, where, doc, updateDoc, setDoc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, updateDoc, setDoc, getDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../services/firebaseConfig';
 import { useAuthStore } from '../store/authStore';
 import { useAppTheme } from '../theme';
@@ -49,10 +49,13 @@ export default function ChefDashboard({ navigation }) {
       const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setMyRecipes(data);
 
-      const totalViews = data.reduce((acc, r) => acc + (r.views || 0), 0);
-      const totalLikes = data.reduce((acc, r) => acc + (r.likes || 0), 0);
-      const totalCooks = data.reduce((acc, r) => acc + (r.cooks || 0), 0);
-      setStats({ totalViews, totalLikes, totalCooks });
+      let views = 0, likes = 0, cooks = 0;
+      data.forEach(r => {
+        views += (r.views || 0);
+        likes += (r.likes || 0);
+        cooks += (r.cooks || 0);
+      });
+      setStats({ totalViews: views, totalLikes: likes, totalCooks: cooks });
 
       // Load Profile if existing
       const userRef = doc(db, 'users', user.uid);
@@ -70,6 +73,29 @@ export default function ChefDashboard({ navigation }) {
       setRefreshing(false);
     }
   }, [user]);
+
+  const handleDeleteRecipe = (recipeId, recipeTitle) => {
+    Alert.alert(
+      "Supprimer la recette",
+      `Êtes-vous sûr de vouloir supprimer "${recipeTitle}" ? Cette action est irréversible.`,
+      [
+        { text: "Annuler", style: "cancel" },
+        { 
+          text: "Supprimer", 
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteDoc(doc(db, 'recipes', recipeId));
+              setMyRecipes(prev => prev.filter(r => r.id !== recipeId));
+            } catch (error) {
+              console.error("Erreur lors de la suppression:", error);
+              Alert.alert("Erreur", "La suppression a échoué.");
+            }
+          }
+        }
+      ]
+    );
+  };
 
   useEffect(() => {
     fetchMyRecipes();
@@ -203,8 +229,11 @@ export default function ChefDashboard({ navigation }) {
                     </View>
                   </View>
                 </View>
-                <TouchableOpacity style={styles.recipeEditBtn}>
-                  <Ionicons name="ellipsis-vertical" size={20} color={colors.textSecondary} />
+                <TouchableOpacity 
+                  style={styles.recipeEditBtn}
+                  onPress={() => handleDeleteRecipe(recipe.id, recipe.title)}
+                >
+                  <Ionicons name="trash-outline" size={20} color="#EF4444" />
                 </TouchableOpacity>
               </View>
             ))

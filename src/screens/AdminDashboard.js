@@ -6,7 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../services/firebaseConfig';
 import { useAuthStore } from '../store/authStore';
 import { useAppTheme } from '../theme';
@@ -71,6 +71,31 @@ export default function AdminDashboard({ navigation }) {
           }
         })),
         { text: 'Annuler', style: 'cancel' }
+      ]
+    );
+  };
+
+  const handleDeleteRecipe = (recipeId, recipeTitle) => {
+    const { Alert } = require('react-native');
+    Alert.alert(
+      "Supprimer la recette",
+      `Êtes-vous sûr de vouloir supprimer définitivement "${recipeTitle}" ?`,
+      [
+        { text: "Annuler", style: "cancel" },
+        { 
+          text: "Supprimer", 
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteDoc(doc(db, 'recipes', recipeId));
+              setRecipes(prev => prev.filter(r => r.id !== recipeId));
+              setStats(s => ({ ...s, totalRecipes: s.totalRecipes - 1 }));
+            } catch (error) {
+              console.error("Erreur lors de la suppression:", error);
+              Alert.alert("Erreur", "La suppression a échoué.");
+            }
+          }
+        }
       ]
     );
   };
@@ -270,6 +295,12 @@ export default function AdminDashboard({ navigation }) {
                       <Text style={styles.recipeStatText}>{r.likes || 0}</Text>
                     </View>
                   </View>
+                  <TouchableOpacity 
+                    style={{ padding: 8, justifyContent: 'center' }}
+                    onPress={() => handleDeleteRecipe(r.id, r.title)}
+                  >
+                    <Ionicons name="trash-outline" size={22} color="#EF4444" />
+                  </TouchableOpacity>
                 </View>
               ))
             )}

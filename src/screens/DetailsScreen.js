@@ -175,6 +175,13 @@ export default function DetailsScreen({ route, navigation }) {
                 height={300}
                 play={true}
                 videoId={youtubeId}
+                initialPlayerParams={{
+                  modestbranding: 1,
+                  rel: 0,
+                  showinfo: 0,
+                  fs: 1,
+                  iv_load_policy: 3
+                }}
                 onChangeState={(state) => {
                   if (state === 'ended') setShowVideo(false);
                 }}
