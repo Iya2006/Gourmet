@@ -100,9 +100,9 @@ export default function ReviewsScreen({ route, navigation }) {
     <View style={styles.headerBox}>
       <Text style={styles.title}>Avis sur {recipe.title}</Text>
       <View style={styles.ratingSummary}>
-        <Text style={styles.ratingNum}>{recipe.rating?.toFixed(1) || '4.5'}</Text>
-        <StarRating rating={recipe.rating || 4.5} size={20} />
-        <Text style={styles.reviewsCount}>({recipe.reviewsCount || 0 + allReviews.length} avis)</Text>
+        <Text style={styles.ratingNum}>{recipe.rating > 0 ? recipe.rating.toFixed(1) : '0.0'}</Text>
+        <StarRating rating={recipe.rating || 0} size={20} />
+        <Text style={styles.reviewsCount}>({allReviews.length} avis)</Text>
       </View>
 
       {/* Add Review Form */}

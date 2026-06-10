@@ -182,11 +182,17 @@ export default function DetailsScreen({ route, navigation }) {
           {recipe.source !== 'themealdb' && (
             <>
               <View style={styles.ratingRow}>
-                <StarRating rating={recipe.rating || 4.5} />
+                <StarRating rating={recipe.rating || 0} />
               </View>
-              <Text style={styles.ratingSubtext}>
-                Basé sur {recipe.reviewsCount || 38} évaluations
-              </Text>
+              {recipe.reviewsCount > 0 ? (
+                <Text style={styles.ratingSubtext}>
+                  Basé sur {recipe.reviewsCount} évaluation{recipe.reviewsCount > 1 ? 's' : ''}
+                </Text>
+              ) : (
+                <Text style={styles.ratingSubtext}>
+                  Aucune évaluation pour le moment
+                </Text>
+              )}
             </>
           )}
 
@@ -273,32 +279,29 @@ export default function DetailsScreen({ route, navigation }) {
               <View>
                 <Text style={styles.sectionTitle}>Avis</Text>
                 <Text style={styles.reviewsSubtext}>
-                  {recipe.reviewsCount || 121} commentaires - 55 images
+                  {recipe.reviewsCount || 0} commentaire{recipe.reviewsCount !== 1 ? 's' : ''}
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => navigation.navigate('Reviews', { recipe, reviews: mockReviews })}>
-                <Text style={styles.readLink}>Lire</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Reviews', { recipe, reviews: recipe.reviews || [] })}>
+                <Text style={styles.readLink}>Lire ou Ajouter</Text>
               </TouchableOpacity>
             </View>
             
             {/* Review thumbnails */}
-            <View style={styles.reviewThumbnails}>
-              {[
-                recipe.image,
-                'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=200',
-                'https://images.unsplash.com/photo-1495147466023-ac5c588e2e94?w=200',
-                'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=200',
-              ].map((img, idx, arr) => (
-                <View key={idx} style={styles.reviewThumbContainer}>
-                  <Image source={{ uri: img }} style={styles.reviewThumb} contentFit="cover" />
-                  {idx === arr.length - 1 && (
-                    <View style={styles.reviewThumbOverlay}>
-                      <Text style={styles.reviewThumbMore}>+47</Text>
-                    </View>
-                  )}
-                </View>
-              ))}
-            </View>
+            {recipe.reviews && recipe.reviews.filter(r => r.photo).length > 0 && (
+              <View style={styles.reviewThumbnails}>
+                {recipe.reviews.filter(r => r.photo).slice(0, 4).map((r, idx, arr) => (
+                  <View key={idx} style={styles.reviewThumbContainer}>
+                    <Image source={{ uri: r.photo }} style={styles.reviewThumb} contentFit="cover" />
+                    {idx === 3 && arr.length > 4 && (
+                      <View style={styles.reviewThumbOverlay}>
+                        <Text style={styles.reviewThumbMore}>+{arr.length - 4}</Text>
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
         )}
 

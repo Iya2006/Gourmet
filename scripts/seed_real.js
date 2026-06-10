@@ -18,10 +18,9 @@ const auth = getAuth(app);
 // Beautiful high-res images from Unsplash
 const stepImages = [
   "https://images.unsplash.com/photo-1556910103-1c02745a872f?w=600&q=80", // Chopping veggies
-  "https://images.unsplash.com/photo-1590779033100-9f60a05a013d?w=600&q=80", // Stirring pot
+  "https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=600&q=80", // Cooking prep overhead
+  "https://images.unsplash.com/photo-1547592180-85f173990554?w=600&q=80", // Cooking pot
   "https://images.unsplash.com/photo-1588167056086-444cd39cb018?w=600&q=80", // Spices
-  "https://images.unsplash.com/photo-1558402529-d2638a7023e9?w=600&q=80", // Frying pan
-  "https://images.unsplash.com/photo-1506368249639-73a05d6f6488?w=600&q=80", // Cooking meat
   "https://images.unsplash.com/photo-1507048331197-7d4ac70811cf?w=600&q=80", // Plating
 ];
 
