@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { theme } from '../theme';
-import { mockRecipes } from '../data/mockRecipes';
+import { useRecipeContext } from '../context/RecipeContext';
 import { useRecipeStore } from '../store/recipeStore';
 
 const { width } = Dimensions.get('window');
@@ -16,15 +16,17 @@ export default function CategoryListScreen({ route, navigation }) {
   const { category } = route.params;
   const { isFavorite, toggleFavorite } = useRecipeStore();
 
+  const { filteredRecipes: allRecipes } = useRecipeContext();
+
   // Filter recipes matching this category by tag name
   const recipes = useMemo(() => {
     const tag = category.tag.toLowerCase();
-    return mockRecipes.filter(r =>
+    return allRecipes.filter(r =>
       r.tags?.some(t => t.toLowerCase().includes(tag)) ||
       r.title?.toLowerCase().includes(tag) ||
       r.ingredients?.some(i => i.name?.toLowerCase().includes(tag))
     );
-  }, [category]);
+  }, [category, allRecipes]);
 
   const renderCard = ({ item }) => (
     <TouchableOpacity

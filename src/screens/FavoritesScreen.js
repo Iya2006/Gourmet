@@ -8,18 +8,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useAppTheme } from '../theme';
 import { useRecipeStore } from '../store/recipeStore';
-import { mockRecipes } from '../data/mockRecipes';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 60) / 2;
 
 // Returns up to 3 recipe images for a cookbook
-function getCookbookImages(cookbook, favorites) {
+function getCookbookImages(cookbook, favorites, allRecipes) {
   let recipes = [];
   if (cookbook.id === 'cb_favorites') {
     recipes = favorites;
   } else {
-    recipes = mockRecipes.filter(r => (cookbook.recipeIds || []).includes(r.id));
+    recipes = allRecipes.filter(r => (cookbook.recipeIds || []).includes(r.id));
   }
   return recipes.slice(0, 3).map(r => r.image).filter(Boolean);
 }
@@ -93,7 +92,7 @@ export default function FavoritesScreen({ navigation }) {
     cookbooks.map(cb => ({
       ...cb,
       displayCount: cb.id === 'cb_favorites' ? favorites.length : (cb.recipeIds?.length || 0),
-      images: getCookbookImages(cb, favorites),
+      images: getCookbookImages(cb, favorites, favorites),
     })),
     [cookbooks, favorites]
   );

@@ -7,16 +7,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { theme } from '../theme';
-import { mockRecipes } from '../data/mockRecipes';
 import { useRecipeStore } from '../store/recipeStore';
+import { useRecipeContext } from '../context/RecipeContext';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 60) / 2;
 
 // Collect all unique ingredients from all recipes
-const getAllIngredients = () => {
+const getAllIngredients = (recipes) => {
   const set = new Set();
-  mockRecipes.forEach(r => {
+  recipes.forEach(r => {
     r.ingredients?.forEach(i => {
       if (i.name) set.add(i.name);
     });
@@ -24,17 +24,19 @@ const getAllIngredients = () => {
   return Array.from(set).sort();
 };
 
-const ALL_INGREDIENTS = getAllIngredients();
-
 export default function SearchByIngredientsScreen({ navigation }) {
   const [query, setQuery] = useState('');
   const [selectedIngredients, setSelectedIngredients] = useState([]);
   const { isFavorite, toggleFavorite } = useRecipeStore();
 
+  const { filteredRecipes: allRecipes } = useRecipeContext();
+
+  const allIngredientsList = useMemo(() => getAllIngredients(allRecipes), [allRecipes]);
+
   const filteredSuggestions = useMemo(() => {
-    if (!query.trim()) return ALL_INGREDIENTS.slice(0, 20);
-    return ALL_INGREDIENTS.filter(i => i.toLowerCase().includes(query.toLowerCase())).slice(0, 20);
-  }, [query]);
+    if (!query.trim()) return allIngredientsList.slice(0, 20);
+    return allIngredientsList.filter(i => i.toLowerCase().includes(query.toLowerCase())).slice(0, 20);
+  }, [query, allIngredientsList]);
 
   const toggleIngredient = (name) => {
     setSelectedIngredients(prev =>
@@ -44,12 +46,12 @@ export default function SearchByIngredientsScreen({ navigation }) {
 
   const results = useMemo(() => {
     if (selectedIngredients.length === 0) return [];
-    return mockRecipes.filter(r =>
+    return allRecipes.filter(r =>
       selectedIngredients.every(sel =>
         r.ingredients?.some(i => i.name?.toLowerCase().includes(sel.toLowerCase()))
       )
     );
-  }, [selectedIngredients]);
+  }, [selectedIngredients, allRecipes]);
 
   const renderCard = ({ item }) => (
     <TouchableOpacity

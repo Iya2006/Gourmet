@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { theme } from '../theme';
 import { useRecipeStore } from '../store/recipeStore';
-import { mockRecipes } from '../data/mockRecipes';
+import { useRecipeContext } from '../context/RecipeContext';
 
 const { width, height } = Dimensions.get('window');
 const CARD_WIDTH = (width - 52) / 2;
@@ -166,10 +166,12 @@ export default function CookbookRecipesScreen({ route, navigation }) {
     saveRecipeToCookbooks, getCookbooksForRecipe, createCookbook,
   } = useRecipeStore();
 
+  const { filteredRecipes: allRecipesFromContext } = useRecipeContext();
+
   const cookbook = cookbooks.find(c => c.id === cookbookId);
   const recipes = cookbookId === 'cb_favorites'
     ? favorites
-    : (cookbook ? mockRecipes.filter(r => cookbook.recipeIds.includes(r.id)) : []);
+    : (cookbook ? allRecipesFromContext.filter(r => cookbook.recipeIds.includes(r.id)) : []);
 
   // Action sheet state
   const [actionVisible, setActionVisible] = useState(false);
@@ -250,7 +252,7 @@ export default function CookbookRecipesScreen({ route, navigation }) {
     }
     const ids = cb.recipeIds || [];
     if (ids.length === 0) return null;
-    const last = mockRecipes.find(r => r.id === ids[ids.length - 1]);
+    const last = allRecipesFromContext.find(r => r.id === ids[ids.length - 1]);
     return last?.image || null;
   };
 

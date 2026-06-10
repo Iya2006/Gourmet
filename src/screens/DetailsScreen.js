@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '../theme';
 import { useRecipeStore } from '../store/recipeStore';
-import { mockRecipes } from '../data/mockRecipes';
+import { useRecipeContext } from '../context/RecipeContext';
 import { incrementRecipeViews } from '../services/recipeService';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -145,9 +145,10 @@ export default function DetailsScreen({ route, navigation }) {
   ];
 
   // Suggested recipes (other recipes from the same category, excluding this one)
+  const { filteredRecipes: allRecipes } = useRecipeContext();
   const suggestedRecipes = useMemo(() => {
-    return mockRecipes.filter(r => r.id !== recipe.id).slice(0, 4);
-  }, [recipe.id]);
+    return allRecipes.filter(r => r.id !== recipe.id).slice(0, 4);
+  }, [recipe.id, allRecipes]);
 
   return (
     <View style={styles.container}>

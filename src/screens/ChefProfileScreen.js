@@ -11,7 +11,7 @@ import { db } from '../services/firebaseConfig';
 import { useAppTheme } from '../theme';
 import { useRecipeStore } from '../store/recipeStore';
 
-import { mockRecipes } from '../data/mockRecipes';
+
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = (SCREEN_WIDTH - 48) / 2;
@@ -42,21 +42,11 @@ export default function ChefProfileScreen({ route, navigation }) {
       const snap = await getDocs(q);
       const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       
-      // If no recipes found in Firestore, check if it's a mock chef
-      if (data.length === 0 && String(chef.id).startsWith('chef-')) {
-        const mockChefRecipes = mockRecipes.filter(r => r.authorName === chef.name);
-        setRecipes(mockChefRecipes.sort((a, b) => (b.likes || 0) - (a.likes || 0)));
-      } else {
-        setRecipes(data.sort((a, b) => (b.likes || 0) - (a.likes || 0)));
-      }
+      setRecipes(data.sort((a, b) => (b.likes || 0) - (a.likes || 0)));
     } catch (e) {
       console.log('ChefProfileScreen fetchData error', e);
       
-      // Fallback for offline mode with mock chefs
-      if (String(chef.id).startsWith('chef-')) {
-        const mockChefRecipes = mockRecipes.filter(r => r.authorName === chef.name);
-        setRecipes(mockChefRecipes.sort((a, b) => (b.likes || 0) - (a.likes || 0)));
-      }
+      // Offline fallback — no data available
     } finally {
       setLoading(false);
       setRefreshing(false);

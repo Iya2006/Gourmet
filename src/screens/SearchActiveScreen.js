@@ -7,8 +7,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { theme } from '../theme';
-import { mockRecipes } from '../data/mockRecipes';
 import { useRecipeStore } from '../store/recipeStore';
+import { useRecipeContext } from '../context/RecipeContext';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 60) / 2;
@@ -34,19 +34,21 @@ export default function SearchActiveScreen({ navigation }) {
     return () => clearTimeout(timer);
   }, []);
 
+  const { filteredRecipes: allRecipes } = useRecipeContext();
+
   const results = useMemo(() => {
     if (activeTag) {
       const tag = QUICK_TAGS.find(t => t.id === activeTag);
-      return tag ? mockRecipes.filter(tag.filter) : [];
+      return tag ? allRecipes.filter(tag.filter) : [];
     }
     if (!query.trim()) return [];
     const q = query.toLowerCase();
-    return mockRecipes.filter(r =>
+    return allRecipes.filter(r =>
       r.title?.toLowerCase().includes(q) ||
       r.ingredients?.some(i => i.name?.toLowerCase().includes(q)) ||
       r.tags?.some(t => t?.toLowerCase().includes(q))
     );
-  }, [query, activeTag]);
+  }, [query, activeTag, allRecipes]);
 
   const showResults = activeTag || query.trim().length > 0;
 
