@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, FlatList, Share, Animated, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, FlatList, Share, Animated, TextInput, Linking } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -135,14 +135,8 @@ export default function DetailsScreen({ route, navigation }) {
   };
 
   // Author description (mock if not present)
-  const authorDescription = recipe.author?.description || 
-    "Passionné(e) de cuisine depuis toujours, j'aime partager mes recettes favorites avec la communauté. Chaque plat raconte une histoire...";
-
-  const mockReviews = [
-    { id: 'r1', author: 'Sophie M.', avatar: 'https://i.pravatar.cc/80?img=1', rating: 5, text: 'Absolument délicieux ! Toute ma famille a adoré, je referai cette recette sans hésiter. Les instructions sont très claires.', date: 'Il y a 2 jours', photo: recipe.image },
-    { id: 'r2', author: 'Lucas B.', avatar: 'https://i.pravatar.cc/80?img=3', rating: 4, text: 'Très bonne recette, facile à suivre. J\'ai ajouté un peu plus d\'ail à mon goût. Le résultat était parfait !', date: 'Il y a 5 jours', photo: null },
-    { id: 'r3', author: 'Emma D.', avatar: 'https://i.pravatar.cc/80?img=5', rating: 5, text: 'Recette testée et approuvée ! Magnifique présentation et goût au rendez-vous. Merci pour ce partage.', date: 'Il y a 1 semaine', photo: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=300' },
-  ];
+  const authorDescription = recipe.author?.description || recipe.authorBio ||
+    "Passionné(e) de cuisine africaine, je partage mes meilleures recettes authentiques pour vous faire voyager à travers les saveurs de notre continent.";
 
   // Suggested recipes (other recipes from the same category, excluding this one)
   const { filteredRecipes: allRecipes } = useRecipeContext();
@@ -173,28 +167,38 @@ export default function DetailsScreen({ route, navigation }) {
           >
             <Ionicons name="chevron-back" size={26} color="#1A1A1A" />
           </TouchableOpacity>
+
+          {/* Youtube Play Button Overlay */}
+          {recipe.youtubeUrl && (
+            <TouchableOpacity 
+              style={styles.youtubePlayOverlay} 
+              onPress={() => Linking.openURL(recipe.youtubeUrl).catch(err => console.error("Couldn't load page", err))}
+            >
+              <View style={styles.youtubePlayCircle}>
+                <Ionicons name="play" size={32} color="#FFF" style={{ marginLeft: 4 }} />
+              </View>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* ════════════ TITLE & RATING ════════════ */}
         <View style={styles.titleSection}>
           <Text style={styles.title}>{recipe.title}</Text>
           
-          {recipe.source !== 'themealdb' && (
-            <>
-              <View style={styles.ratingRow}>
-                <StarRating rating={recipe.rating || 0} />
-              </View>
-              {recipe.reviewsCount > 0 ? (
-                <Text style={styles.ratingSubtext}>
-                  Basé sur {recipe.reviewsCount} évaluation{recipe.reviewsCount > 1 ? 's' : ''}
-                </Text>
-              ) : (
-                <Text style={styles.ratingSubtext}>
-                  Aucune évaluation pour le moment
-                </Text>
-              )}
-            </>
-          )}
+          <>
+            <View style={styles.ratingRow}>
+              <StarRating rating={recipe.rating || 0} />
+            </View>
+            {recipe.reviewsCount > 0 ? (
+              <Text style={styles.ratingSubtext}>
+                Basé sur {recipe.reviewsCount} évaluation{recipe.reviewsCount > 1 ? 's' : ''}
+              </Text>
+            ) : (
+              <Text style={styles.ratingSubtext}>
+                Aucune évaluation pour le moment
+              </Text>
+            )}
+          </>
 
           {/* Share & Like buttons */}
           <View style={styles.actionButtons}>
@@ -227,85 +231,64 @@ export default function DetailsScreen({ route, navigation }) {
         <Separator />
 
         {/* ════════════ AUTHOR SECTION ════════════ */}
-        {recipe.source === 'themealdb' ? (
-          <View style={styles.authorSection}>
-            <View style={styles.authorRow}>
-              <View style={[styles.authorAvatar, { backgroundColor: theme.colors.primary, justifyContent: 'center', alignItems: 'center' }]}>
-                <Ionicons name="globe-outline" size={32} color="#FFF" />
-              </View>
-              <View style={styles.authorInfo}>
-                <Text style={styles.authorName}>TheMealDB</Text>
-                <Text style={styles.authorRole}>Source Web API</Text>
-                <Text style={styles.authorLink}>www.themealdb.com</Text>
-              </View>
+        <View style={styles.authorSection}>
+          <View style={styles.authorRow}>
+            <Image 
+              source={{ uri: recipe.authorAvatar || recipe.author?.avatar || 'https://images.unsplash.com/photo-1531384441138-2736e62e0919?w=400&q=80' }} 
+              style={styles.authorAvatar} 
+              contentFit="cover" 
+            />
+            <View style={styles.authorInfo}>
+              <Text style={styles.authorName}>{recipe.authorName || recipe.author?.name || 'Chef Gourmet'}</Text>
+              <Text style={styles.authorRole}>Chef Cuistot</Text>
+              <Text style={styles.authorLink}>Découvrir son profil</Text>
             </View>
-            <Text style={styles.authorDesc}>
-              Cette recette a été importée depuis la base de données ouverte TheMealDB.
-              Elle a été ajoutée automatiquement via notre système de recherche externe.
-            </Text>
           </View>
-        ) : (
-          <View style={styles.authorSection}>
-            <View style={styles.authorRow}>
-              <Image 
-                source={{ uri: recipe.authorAvatar || recipe.author?.avatar || 'https://images.unsplash.com/photo-1531384441138-2736e62e0919?w=400&q=80' }} 
-                style={styles.authorAvatar} 
-                contentFit="cover" 
-              />
-              <View style={styles.authorInfo}>
-                <Text style={styles.authorName}>{recipe.authorName || recipe.author?.name || 'Chef Gourmet'}</Text>
-                <Text style={styles.authorRole}>{recipe.author?.role || 'Chef Cuistot'}</Text>
-                <Text style={styles.authorLink}>Découvrir son profil</Text>
-              </View>
-            </View>
-            
-            <Text style={styles.authorDesc} numberOfLines={descExpanded ? undefined : 4}>
-              {authorDescription}
-            </Text>
-            {!descExpanded && (
-              <TouchableOpacity onPress={() => setDescExpanded(true)}>
-                <Text style={styles.readMore}>Lire la suite</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
+          
+          <Text style={styles.authorDesc} numberOfLines={descExpanded ? undefined : 4}>
+            {authorDescription}
+          </Text>
+          {!descExpanded && (
+            <TouchableOpacity onPress={() => setDescExpanded(true)}>
+              <Text style={styles.readMore}>Lire la suite</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
         <Separator />
 
         {/* ════════════ REVIEWS SECTION ════════════ */}
-        {recipe.source !== 'themealdb' && (
-          <View style={styles.reviewsSection}>
-            <View style={styles.reviewsHeader}>
-              <View>
-                <Text style={styles.sectionTitle}>Avis</Text>
-                <Text style={styles.reviewsSubtext}>
-                  {recipe.reviewsCount || 0} commentaire{recipe.reviewsCount !== 1 ? 's' : ''}
-                </Text>
-              </View>
-              <TouchableOpacity onPress={() => navigation.navigate('Reviews', { recipe, reviews: recipe.reviews || [] })}>
-                <Text style={styles.readLink}>Lire ou Ajouter</Text>
-              </TouchableOpacity>
+        <View style={styles.reviewsSection}>
+          <View style={styles.reviewsHeader}>
+            <View>
+              <Text style={styles.sectionTitle}>Avis</Text>
+              <Text style={styles.reviewsSubtext}>
+                {recipe.reviewsCount || 0} commentaire{(recipe.reviewsCount || 0) !== 1 ? 's' : ''}
+              </Text>
             </View>
-            
-            {/* Review thumbnails */}
-            {recipe.reviews && recipe.reviews.filter(r => r.photo).length > 0 && (
-              <View style={styles.reviewThumbnails}>
-                {recipe.reviews.filter(r => r.photo).slice(0, 4).map((r, idx, arr) => (
-                  <View key={idx} style={styles.reviewThumbContainer}>
-                    <Image source={{ uri: r.photo }} style={styles.reviewThumb} contentFit="cover" />
-                    {idx === 3 && arr.length > 4 && (
-                      <View style={styles.reviewThumbOverlay}>
-                        <Text style={styles.reviewThumbMore}>+{arr.length - 4}</Text>
-                      </View>
-                    )}
-                  </View>
-                ))}
-              </View>
-            )}
+            <TouchableOpacity onPress={() => navigation.navigate('Reviews', { recipe, reviews: recipe.reviews || [] })}>
+              <Text style={styles.readLink}>Lire ou Ajouter</Text>
+            </TouchableOpacity>
           </View>
-        )}
+          
+          {/* Review thumbnails */}
+          {recipe.reviews && recipe.reviews.filter(r => r.photo).length > 0 && (
+            <View style={styles.reviewThumbnails}>
+              {recipe.reviews.filter(r => r.photo).slice(0, 4).map((r, idx, arr) => (
+                <View key={idx} style={styles.reviewThumbContainer}>
+                  <Image source={{ uri: r.photo }} style={styles.reviewThumb} contentFit="cover" />
+                  {idx === 3 && arr.length > 4 && (
+                    <View style={styles.reviewThumbOverlay}>
+                      <Text style={styles.reviewThumbMore}>+{arr.length - 4}</Text>
+                    </View>
+                  )}
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
 
-        {recipe.source !== 'themealdb' && <Separator />}
+        <Separator />
 
         {/* ════════════ DIFFICULTY ════════════ */}
         <View style={styles.difficultySection}>
@@ -405,26 +388,26 @@ export default function DetailsScreen({ route, navigation }) {
         )}
 
         {/* ════════════ NUTRITION ════════════ */}
-        {recipe.source !== 'themealdb' && (
+        {recipe.nutrition && (
           <>
             <View style={styles.nutritionSection}>
               <Text style={styles.sectionTitle}>Valeurs nutritionnelles par portion</Text>
               <View style={styles.nutritionGrid}>
                 <View style={styles.nutritionItem}>
                   <Text style={styles.nutritionLabel}>Cal</Text>
-                  <Text style={styles.nutritionValue}>{recipe.nutrition?.calories || recipe.nutrition?.cal || 163}</Text>
+                  <Text style={styles.nutritionValue}>{recipe.nutrition.calories || recipe.nutrition.cal || '—'}</Text>
                 </View>
                 <View style={styles.nutritionItem}>
-                  <Text style={styles.nutritionLabel}>Prot...</Text>
-                  <Text style={styles.nutritionValue}>{recipe.nutrition?.protein || recipe.nutrition?.prot || 2} g</Text>
+                  <Text style={styles.nutritionLabel}>Prot.</Text>
+                  <Text style={styles.nutritionValue}>{recipe.nutrition.protein ? `${recipe.nutrition.protein} g` : '—'}</Text>
                 </View>
                 <View style={styles.nutritionItem}>
                   <Text style={styles.nutritionLabel}>Lipides</Text>
-                  <Text style={styles.nutritionValue}>{recipe.nutrition?.fat || 19} g</Text>
+                  <Text style={styles.nutritionValue}>{recipe.nutrition.fat ? `${recipe.nutrition.fat} g` : '—'}</Text>
                 </View>
                 <View style={styles.nutritionItem}>
                   <Text style={styles.nutritionLabel}>Glucides</Text>
-                  <Text style={styles.nutritionValue}>{recipe.nutrition?.carbs || recipe.nutrition?.carb || 23} g</Text>
+                  <Text style={styles.nutritionValue}>{recipe.nutrition.carbs ? `${recipe.nutrition.carbs} g` : '—'}</Text>
                 </View>
               </View>
             </View>
@@ -536,6 +519,25 @@ const styles = StyleSheet.create({
     borderRadius: 19,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  youtubePlayOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.2)',
+  },
+  youtubePlayCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(255, 0, 0, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 8,
   },
 
   // ── Sticky Header ──
