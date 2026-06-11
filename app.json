@@ -46,6 +46,12 @@
           "androidCollapsedTitle": "Gourmet"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "1dea0c26-28b5-4f68-a3f4-35bd43c17cb7"
+      }
+    },
+    "owner": "mohamed_nfa_iya_camara"
   }
 }

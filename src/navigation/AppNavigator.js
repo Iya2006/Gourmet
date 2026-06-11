@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Platform } from 'react-native';
@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useAppTheme } from '../theme';
 import { useAuthStore } from '../store/authStore';
+import * as Notifications from 'expo-notifications';
 
 import SplashScreen from '../screens/SplashScreen';
 import LoginScreen from '../screens/LoginScreen';
@@ -27,9 +28,11 @@ import SearchActiveScreen from '../screens/SearchActiveScreen';
 import CategoryListScreen from '../screens/CategoryListScreen';
 import SearchByIngredientsScreen from '../screens/SearchByIngredientsScreen';
 import ChefProfileScreen from '../screens/ChefProfileScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+export const navigationRef = createNavigationContainerRef();
 
 function TabNavigator() {
   const { t } = useTranslation();
@@ -84,16 +87,31 @@ function TabNavigator() {
 }
 
 export default function AppNavigator() {
-  const { t } = useTranslation();
   const { user, userProfile, isLoading, initAuthListener } = useAuthStore();
   const { colors } = useAppTheme();
   const [showSplash, setShowSplash] = useState(true);
+  const lastNotificationResponse = Notifications.useLastNotificationResponse();
 
   useEffect(() => {
-    // Initialize the listener once when the app starts
     const unsubscribe = initAuthListener();
-    return unsubscribe;
-  }, []);
+    return () => unsubscribe();
+  }, [initAuthListener]);
+
+  useEffect(() => {
+    if (
+      lastNotificationResponse &&
+      lastNotificationResponse.notification.request.content.data.recipeId &&
+      lastNotificationResponse.actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER
+    ) {
+      const recipeTitle = lastNotificationResponse.notification.request.content.data.recipeId;
+      // Navigate when navigation container is ready
+      setTimeout(() => {
+        if (navigationRef.isReady()) {
+          navigationRef.navigate('Details', { recipeTitle });
+        }
+      }, 100); // Small delay to ensure auth state and navigators are mounted
+    }
+  }, [lastNotificationResponse]);
 
   if (showSplash) {
     return <SplashScreen onFinish={() => setShowSplash(false)} />;
@@ -116,7 +134,7 @@ export default function AppNavigator() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator 
         initialRouteName={initialRoute}
         screenOptions={{ 
@@ -147,6 +165,7 @@ export default function AppNavigator() {
             <Stack.Screen name="ChefDashboard" component={ChefDashboard} />
             <Stack.Screen name="AddRecipe" component={AddRecipeScreen} />
             <Stack.Screen name="ChefProfile" component={ChefProfileScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: false }} />
           </>
 
         ) : (

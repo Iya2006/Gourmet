@@ -10,6 +10,9 @@ import { useAppTheme } from '../theme';
 import FloatingImportButton from '../components/FloatingImportButton';
 import { fetchAllRecipes, fetchAllChefs } from '../services/recipeService';
 import { useRecipeStore } from '../store/recipeStore';
+import { useAuthStore } from '../store/authStore';
+import { db } from '../services/firebaseConfig';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -59,11 +62,30 @@ export default function HomeScreen({ navigation }) {
   const { colors, fonts, isDarkMode } = useAppTheme();
   const styles = getStyles(colors, fonts, isDarkMode);
   const { isFavorite, toggleFavorite } = useRecipeStore();
+  const { user } = useAuthStore();
   const scrollY = useRef(new Animated.Value(0)).current;
 
   const [recipes, setRecipes] = useState([]);
   const [chefs, setChefs] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Écouteur pour les notifications non lues
+  useEffect(() => {
+    if (!user) {
+      setUnreadCount(0);
+      return;
+    }
+    const q = query(
+      collection(db, 'users', user.uid, 'notifications'),
+      where('read', '==', false)
+    );
+    const unsubscribe = onSnapshot(q, (snap) => {
+      setUnreadCount(snap.size);
+    }, (e) => console.log('Erreur notifs', e));
+
+    return () => unsubscribe();
+  }, [user]);
 
   const loadData = async () => {
     try {
@@ -220,8 +242,17 @@ export default function HomeScreen({ navigation }) {
       {/* Header animé — disparaît au scroll */}
       <Animated.View style={[styles.topTabsContainer, { transform: [{ translateY: headerTranslateY }] }]}>
         <SafeAreaView edges={['top']} />
-        <View style={styles.topTabs}>
+        <View style={[styles.topTabs, { justifyContent: 'space-between', paddingHorizontal: 20 }]}>
           <Text style={[styles.topTabText, styles.topTabTextActive]}>Choix de l'éditeur</Text>
+          
+          <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={styles.bellContainer}>
+            <Ionicons name="notifications-outline" size={24} color={colors.text} />
+            {unreadCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
       </Animated.View>
 
@@ -350,9 +381,34 @@ const getStyles = (colors, fonts, isDarkMode) => StyleSheet.create({
   },
   topTabs: { flexDirection: 'row', justifyContent: 'center', paddingVertical: 12 },
   topTabText: { fontSize: 18, fontWeight: 'bold', color: colors.textSecondary },
-  topTabTextActive: { color: colors.primary, fontSize: 18, fontWeight: '800' },
-
-  scrollContent: { paddingBottom: 80, paddingTop: 80 },
+  topTabTextActive: {
+    color: colors.text,
+  },
+  bellContainer: {
+    position: 'relative',
+    padding: 4,
+  },
+  badge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: '#EF4444',
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: '#FFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  scrollContent: {
+    paddingTop: 80,
+    paddingBottom: 100,
+  },
 
   heroSection: { marginBottom: 40 },
 

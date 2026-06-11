@@ -8,15 +8,15 @@
  * - Demande de permission à l'utilisateur
  * - Génération du token push Expo
  * - Sauvegarde du token dans Firestore
- * - Envoi de notifications à TOUS les abonnés via l'Expo Push API
  * - Réception et affichage des notifications en foreground
+ * - Sauvegarde de l'historique des notifications in-app dans Firestore
  */
 
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
-import { collection, getDocs, doc, updateDoc, query, where } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, query, where, writeBatch } from 'firebase/firestore';
 import { db } from './firebaseConfig';
 
 // ── Configuration globale de l'affichage des notifications en premier plan ──
@@ -128,12 +128,32 @@ export async function sendPushNotificationToAllSubscribers(title, body, data = {
     );
 
     const tokens = [];
+    const userIds = [];
     usersSnap.docs.forEach((d) => {
+      userIds.push(d.id);
       const token = d.data().pushToken;
       if (token && token.startsWith('ExponentPushToken[')) {
         tokens.push(token);
       }
     });
+
+    // Sauvegarde in-app de la notification pour tous ces utilisateurs
+    if (userIds.length > 0) {
+      const batch = writeBatch(db);
+      const timestamp = new Date().toISOString();
+      userIds.forEach((uid) => {
+        const notifRef = doc(collection(db, 'users', uid, 'notifications'));
+        batch.set(notifRef, {
+          title,
+          body,
+          data,
+          read: false,
+          createdAt: timestamp
+        });
+      });
+      await batch.commit();
+      console.log(`✅ Historique de notification sauvegardé pour ${userIds.length} utilisateurs.`);
+    }
 
     if (tokens.length === 0) {
       console.log('Aucun abonné avec un token valide.');

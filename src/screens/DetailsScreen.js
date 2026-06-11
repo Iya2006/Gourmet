@@ -66,15 +66,22 @@ const Separator = () => <View style={styles.separator} />;
 
 // ─── Main Screen ──────────────────────────────────────────────────────
 export default function DetailsScreen({ route, navigation }) {
-  const { recipe } = route.params;
+  const { recipes } = useRecipeContext();
+  const routeRecipe = route.params?.recipe;
+  const routeRecipeTitle = route.params?.recipeTitle;
+
+  // Fallback to searching the recipe if only title is provided (from push notification)
+  const initialRecipe = routeRecipe || recipes.find(r => r.title === routeRecipeTitle) || {};
+
+  const [recipe, setRecipe] = useState(initialRecipe);
   const insets = useSafeAreaInsets();
   
-  const [servings, setServings] = useState(recipe.baseServings || 2);
+  const [servings, setServings] = useState(recipe?.baseServings || 2);
   const [descExpanded, setDescExpanded] = useState(false);
   const { isFavorite, toggleFavorite, addRecipeToShoppingList, isInShoppingList } = useRecipeStore();
 
-  const isFav = isFavorite(recipe.id);
-  const inList = isInShoppingList(recipe.id);
+  const isFav = isFavorite(recipe?.id);
+  const inList = isInShoppingList(recipe?.id);
 
   // Increment views on mount
   React.useEffect(() => {
