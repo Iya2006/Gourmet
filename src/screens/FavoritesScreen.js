@@ -81,7 +81,7 @@ const collageStyles = StyleSheet.create({
 export default function FavoritesScreen({ navigation }) {
   const { colors, isDarkMode } = useAppTheme();
   const styles = getStyles(colors, isDarkMode);
-  
+
   const { cookbooks, favorites, createCookbook } = useRecipeStore();
   const insets = useSafeAreaInsets();
 
@@ -89,11 +89,13 @@ export default function FavoritesScreen({ navigation }) {
   const [newTitle, setNewTitle] = useState('');
 
   const displayCookbooks = useMemo(() =>
-    cookbooks.map(cb => ({
-      ...cb,
-      displayCount: cb.id === 'cb_favorites' ? favorites.length : (cb.recipeIds?.length || 0),
-      images: getCookbookImages(cb, favorites, favorites),
-    })),
+    cookbooks
+      .filter(cb => cb.id !== 'cb_imported')
+      .map(cb => ({
+        ...cb,
+        displayCount: cb.id === 'cb_favorites' ? favorites.length : (cb.recipeIds?.length || 0),
+        images: getCookbookImages(cb, favorites, favorites),
+      })),
     [cookbooks, favorites]
   );
 
@@ -188,8 +190,8 @@ export default function FavoritesScreen({ navigation }) {
           activeOpacity={1}
           onPress={() => setCreateModalVisible(false)}
         >
-          <KeyboardAvoidingView 
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             style={{ width: '100%', justifyContent: 'flex-end' }}
           >
             <View
@@ -249,7 +251,7 @@ const getStyles = (colors, isDarkMode) => StyleSheet.create({
 
   emptyGridPreview: { width: '72%', height: '72%', gap: 4 },
   emptyGridTop: {
-    flex: 1, 
+    flex: 1,
     borderRadius: 8, marginBottom: 4,
   },
   emptyGridBottom: { flex: 1, flexDirection: 'row', gap: 4 },

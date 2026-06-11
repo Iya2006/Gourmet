@@ -120,7 +120,7 @@ export async function updateNotificationPreference(userId, enabled) {
  * @param {string} body - Corps du message
  * @param {object} data - Données supplémentaires (ex: recipeId pour navigation)
  */
-export async function sendPushNotificationToAllSubscribers(title, body, data = {}) {
+export async function sendPushNotificationToAllSubscribers(title, body, data = {}, excludeUserId = null) {
   try {
     // 1. Récupérer tous les utilisateurs avec notifications activées
     const usersSnap = await getDocs(
@@ -130,6 +130,8 @@ export async function sendPushNotificationToAllSubscribers(title, body, data = {
     const tokens = [];
     const userIds = [];
     usersSnap.docs.forEach((d) => {
+      if (excludeUserId && d.id === excludeUserId) return; // Ne pas notifier l'auteur
+      
       userIds.push(d.id);
       const token = d.data().pushToken;
       if (token && token.startsWith('ExponentPushToken[')) {

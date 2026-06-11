@@ -8,6 +8,8 @@ import { theme } from '../theme';
 import { useRecipeStore } from '../store/recipeStore';
 import { useRecipeContext } from '../context/RecipeContext';
 import { incrementRecipeViews } from '../services/recipeService';
+import { getDoc, doc } from 'firebase/firestore';
+import { db } from '../services/firebaseConfig';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -69,13 +71,41 @@ export default function DetailsScreen({ route, navigation }) {
   const { recipes } = useRecipeContext();
   const routeRecipe = route.params?.recipe;
   const routeRecipeTitle = route.params?.recipeTitle;
+  const routeRecipeId = route.params?.recipeId;
 
-  // Fallback to searching the recipe if only title is provided (from push notification)
-  const initialRecipe = routeRecipe || recipes.find(r => r.title === routeRecipeTitle) || {};
+  // Try finding by ID first, then title
+  const initialRecipe = routeRecipe ||
+    (routeRecipeId ? recipes.find(r => r.id === routeRecipeId) : null) ||
+    (routeRecipeTitle ? recipes.find(r => r.title === routeRecipeTitle) : null) ||
+    {};
 
   const [recipe, setRecipe] = useState(initialRecipe);
+  const [loading, setLoading] = useState(!recipe.id && (routeRecipeId || routeRecipeTitle));
   const insets = useSafeAreaInsets();
-  
+
+  React.useEffect(() => {
+    // If the recipe wasn't found in context (e.g. newly created by someone else and we tapped notification)
+    const fetchMissingRecipe = async () => {
+      if (!recipe.id && (routeRecipeId || routeRecipeTitle)) {
+        try {
+          if (routeRecipeId && !routeRecipeId.includes(' ')) {
+            const docRef = doc(db, 'recipes', routeRecipeId);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+              setRecipe({ id: docSnap.id, ...docSnap.data() });
+              setLoading(false);
+              return;
+            }
+          }
+        } catch (e) {
+          console.error("Error fetching recipe from DetailsScreen:", e);
+        }
+        setLoading(false);
+      }
+    };
+    fetchMissingRecipe();
+  }, [routeRecipeId, routeRecipeTitle]);
+
   const [servings, setServings] = useState(recipe?.baseServings || 2);
   const [descExpanded, setDescExpanded] = useState(false);
   const { isFavorite, toggleFavorite, addRecipeToShoppingList, isInShoppingList } = useRecipeStore();
@@ -95,7 +125,7 @@ export default function DetailsScreen({ route, navigation }) {
 
   // --- State for Video ---
   const [showVideo, setShowVideo] = useState(false);
-  
+
   const youtubeId = useMemo(() => {
     if (!recipe.youtubeUrl) return null;
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
@@ -149,7 +179,7 @@ export default function DetailsScreen({ route, navigation }) {
   const handleShare = async () => {
     try {
       await Share.share({ message: `Découvre cette recette : ${recipe.title}` });
-    } catch (e) {}
+    } catch (e) { }
   };
 
   // Author description (mock if not present)
@@ -174,371 +204,379 @@ export default function DetailsScreen({ route, navigation }) {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Animated.ScrollView 
-        showsVerticalScrollIndicator={false} 
-        contentContainerStyle={styles.scrollContent}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
-        )}
-        scrollEventThrottle={16}
-      >
-        
-        {/* ════════════ HERO IMAGE / VIDEO ════════════ */}
-        <View style={styles.imageContainer}>
-          {showVideo && youtubeId ? (
-            <View style={{ width: '100%', height: '100%', backgroundColor: '#000', paddingTop: Math.max(insets.top, 0) }}>
-              <YoutubePlayer
-                height={300}
-                play={true}
-                videoId={youtubeId}
-                initialPlayerParams={{
-                  modestbranding: 1,
-                  rel: 0,
-                  showinfo: 0,
-                  fs: 1,
-                  iv_load_policy: 3
-                }}
-                onChangeState={(state) => {
-                  if (state === 'ended') setShowVideo(false);
-                }}
-              />
-            </View>
-          ) : (
-            <>
-              <Image source={{ uri: recipe.image }} style={styles.heroImage} contentFit="cover" />
-              
-              {/* Youtube Play Button Overlay */}
-              {youtubeId && (
-                <TouchableOpacity 
-                  style={styles.youtubePlayOverlay} 
-                  onPress={() => setShowVideo(true)}
-                >
-                  <View style={styles.youtubePlayCircle}>
-                    <Ionicons name="play" size={32} color="#FFF" style={{ marginLeft: 4 }} />
-                  </View>
-                </TouchableOpacity>
-              )}
-            </>
-          )}
-
-          {/* Back Button on the image - always visible */}
-          <TouchableOpacity 
-            style={[styles.backBtnOnImage, { top: Math.max(insets.top, 12), zIndex: 10 }]} 
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons name="chevron-back" size={26} color="#1A1A1A" />
-          </TouchableOpacity>
+      {loading ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ color: theme.colors.textSecondary, marginBottom: 10 }}>Chargement de la recette...</Text>
         </View>
-
-        {/* ════════════ TITLE & RATING ════════════ */}
-        <View style={styles.titleSection}>
-          <Text style={styles.title}>{recipe.title}</Text>
-          
-          <>
-            <View style={styles.ratingRow}>
-              <StarRating rating={recipe.rating || 0} />
-            </View>
-            {recipe.reviewsCount > 0 ? (
-              <Text style={styles.ratingSubtext}>
-                Basé sur {recipe.reviewsCount} évaluation{recipe.reviewsCount > 1 ? 's' : ''}
-              </Text>
-            ) : (
-              <Text style={styles.ratingSubtext}>
-                Aucune évaluation pour le moment
-              </Text>
+      ) : (
+        <>
+          <Animated.ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+            onScroll={Animated.event(
+              [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+              { useNativeDriver: true }
             )}
-          </>
+            scrollEventThrottle={16}
+          >
 
-          {/* Share & Like buttons */}
-          <View style={styles.actionButtons}>
-            <TouchableOpacity style={styles.actionCircle} onPress={handleShare}>
-              <Ionicons name="share-social-outline" size={22} color="#555" />
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.actionCircle, isFav && styles.actionCircleFav]} 
-              onPress={() => toggleFavorite(recipe)}
-            >
-              <Ionicons 
-                name={isFav ? "heart" : "heart-outline"} 
-                size={22} 
-                color={isFav ? "#FFF" : theme.colors.primary} 
-              />
-            </TouchableOpacity>
-          </View>
+            {/* ════════════ HERO IMAGE / VIDEO ════════════ */}
+            <View style={styles.imageContainer}>
+              {showVideo && youtubeId ? (
+                <View style={{ width: '100%', height: '100%', backgroundColor: '#000', paddingTop: Math.max(insets.top, 0) }}>
+                  <YoutubePlayer
+                    height={300}
+                    play={true}
+                    videoId={youtubeId}
+                    initialPlayerParams={{
+                      modestbranding: 1,
+                      rel: 0,
+                      showinfo: 0,
+                      fs: 1,
+                      iv_load_policy: 3
+                    }}
+                    onChangeState={(state) => {
+                      if (state === 'ended') setShowVideo(false);
+                    }}
+                  />
+                </View>
+              ) : (
+                <>
+                  <Image source={{ uri: recipe.image }} style={styles.heroImage} contentFit="cover" />
 
-          {/* Likes count badge */}
-          <View style={styles.likesBadge}>
-            <Ionicons name="heart" size={14} color={theme.colors.primary} />
-            <Text style={styles.likesBadgeText}>{formatLikes(currentLikes)}</Text>
-          </View>
-        </View>
+                  {/* Youtube Play Button Overlay */}
+                  {youtubeId && (
+                    <TouchableOpacity
+                      style={styles.youtubePlayOverlay}
+                      onPress={() => setShowVideo(true)}
+                    >
+                      <View style={styles.youtubePlayCircle}>
+                        <Ionicons name="play" size={32} color="#FFF" style={{ marginLeft: 4 }} />
+                      </View>
+                    </TouchableOpacity>
+                  )}
+                </>
+              )}
 
-        {/* ════════════ STICKY HEADER (Share & Like) ════════════ */}
-        {/* The sticky header is handled by the scroll itself — 
+              {/* Back Button on the image - always visible */}
+              <TouchableOpacity
+                style={[styles.backBtnOnImage, { top: Math.max(insets.top, 12), zIndex: 10 }]}
+                onPress={() => navigation.goBack()}
+              >
+                <Ionicons name="chevron-back" size={26} color="#1A1A1A" />
+              </TouchableOpacity>
+            </View>
+
+            {/* ════════════ TITLE & RATING ════════════ */}
+            <View style={styles.titleSection}>
+              <Text style={styles.title}>{recipe.title}</Text>
+
+              <>
+                <View style={styles.ratingRow}>
+                  <StarRating rating={recipe.rating || 0} />
+                </View>
+                {recipe.reviewsCount > 0 ? (
+                  <Text style={styles.ratingSubtext}>
+                    Basé sur {recipe.reviewsCount} évaluation{recipe.reviewsCount > 1 ? 's' : ''}
+                  </Text>
+                ) : (
+                  <Text style={styles.ratingSubtext}>
+                    Aucune évaluation pour le moment
+                  </Text>
+                )}
+              </>
+
+              {/* Share & Like buttons */}
+              <View style={styles.actionButtons}>
+                <TouchableOpacity style={styles.actionCircle} onPress={handleShare}>
+                  <Ionicons name="share-social-outline" size={22} color="#555" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionCircle, isFav && styles.actionCircleFav]}
+                  onPress={() => toggleFavorite(recipe)}
+                >
+                  <Ionicons
+                    name={isFav ? "heart" : "heart-outline"}
+                    size={22}
+                    color={isFav ? "#FFF" : theme.colors.primary}
+                  />
+                </TouchableOpacity>
+              </View>
+
+              {/* Likes count badge */}
+              <View style={styles.likesBadge}>
+                <Ionicons name="heart" size={14} color={theme.colors.primary} />
+                <Text style={styles.likesBadgeText}>{formatLikes(currentLikes)}</Text>
+              </View>
+            </View>
+
+            {/* ════════════ STICKY HEADER (Share & Like) ════════════ */}
+            {/* The sticky header is handled by the scroll itself — 
             on iOS the navigation bar would handle it. We simulate it. */}
 
-        <Separator />
+            <Separator />
 
-        {/* ════════════ AUTHOR SECTION ════════════ */}
-        <View style={styles.authorSection}>
-          <View style={styles.authorRow}>
-            <Image 
-              source={{ uri: recipe.authorAvatar || recipe.author?.avatar || 'https://images.unsplash.com/photo-1531384441138-2736e62e0919?w=400&q=80' }} 
-              style={styles.authorAvatar} 
-              contentFit="cover" 
-            />
-            <View style={styles.authorInfo}>
-              <Text style={styles.authorName}>{recipe.authorName || recipe.author?.name || 'Chef Gourmet'}</Text>
-              <Text style={styles.authorRole}>Chef Cuistot</Text>
-              <Text style={styles.authorLink}>Découvrir son profil</Text>
+            {/* ════════════ AUTHOR SECTION ════════════ */}
+            <View style={styles.authorSection}>
+              <View style={styles.authorRow}>
+                <Image
+                  source={{ uri: recipe.authorAvatar || recipe.author?.avatar || 'https://images.unsplash.com/photo-1531384441138-2736e62e0919?w=400&q=80' }}
+                  style={styles.authorAvatar}
+                  contentFit="cover"
+                />
+                <View style={styles.authorInfo}>
+                  <Text style={styles.authorName}>{recipe.authorName || recipe.author?.name || 'Chef Gourmet'}</Text>
+                  <Text style={styles.authorRole}>Chef Cuistot</Text>
+                  <Text style={styles.authorLink}>Découvrir son profil</Text>
+                </View>
+              </View>
+
+              <Text style={styles.authorDesc} numberOfLines={descExpanded ? undefined : 4}>
+                {authorDescription}
+              </Text>
+              {!descExpanded && (
+                <TouchableOpacity onPress={() => setDescExpanded(true)}>
+                  <Text style={styles.readMore}>Lire la suite</Text>
+                </TouchableOpacity>
+              )}
             </View>
-          </View>
-          
-          <Text style={styles.authorDesc} numberOfLines={descExpanded ? undefined : 4}>
-            {authorDescription}
-          </Text>
-          {!descExpanded && (
-            <TouchableOpacity onPress={() => setDescExpanded(true)}>
-              <Text style={styles.readMore}>Lire la suite</Text>
-            </TouchableOpacity>
-          )}
-        </View>
 
-        <Separator />
+            <Separator />
 
-        {/* ════════════ REVIEWS SECTION ════════════ */}
-        <View style={styles.reviewsSection}>
-          <View style={styles.reviewsHeader}>
-            <View style={styles.reviewScoreBox}>
-              <Text style={styles.reviewScoreNum}>{recipe.rating > 0 ? recipe.rating.toFixed(1) : '0.0'}</Text>
-              <Text style={styles.reviewTotal}>({combinedReviews.length} avis)</Text>
-            </View>
-            <TouchableOpacity onPress={() => navigation.navigate('Reviews', { recipe, reviews: combinedReviews })}>
-              <Text style={styles.readLink}>Lire ou Ajouter</Text>
-            </TouchableOpacity>
-          </View>
-          
-          {/* Review thumbnails */}
-          {combinedReviews.filter(r => r.photo).length > 0 && (
-            <View style={styles.reviewThumbnails}>
-              {combinedReviews.filter(r => r.photo).slice(0, 4).map((r, idx, arr) => (
-                <View key={idx} style={styles.reviewThumbContainer}>
-                  <Image source={{ uri: r.photo }} style={styles.reviewThumb} contentFit="cover" />
-                  {idx === 3 && arr.length > 4 && (
-                    <View style={styles.reviewThumbOverlay}>
-                      <Text style={styles.reviewThumbMore}>+{arr.length - 4}</Text>
+            {/* ════════════ REVIEWS SECTION ════════════ */}
+            <View style={styles.reviewsSection}>
+              <View style={styles.reviewsHeader}>
+                <View style={styles.reviewScoreBox}>
+                  <Text style={styles.reviewScoreNum}>{recipe.rating > 0 ? recipe.rating.toFixed(1) : '0.0'}</Text>
+                  <Text style={styles.reviewTotal}>({combinedReviews.length} avis)</Text>
+                </View>
+                <TouchableOpacity onPress={() => navigation.navigate('Reviews', { recipe, reviews: combinedReviews })}>
+                  <Text style={styles.readLink}>Lire ou Ajouter</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Review thumbnails */}
+              {combinedReviews.filter(r => r.photo).length > 0 && (
+                <View style={styles.reviewThumbnails}>
+                  {combinedReviews.filter(r => r.photo).slice(0, 4).map((r, idx, arr) => (
+                    <View key={idx} style={styles.reviewThumbContainer}>
+                      <Image source={{ uri: r.photo }} style={styles.reviewThumb} contentFit="cover" />
+                      {idx === 3 && arr.length > 4 && (
+                        <View style={styles.reviewThumbOverlay}>
+                          <Text style={styles.reviewThumbMore}>+{arr.length - 4}</Text>
+                        </View>
+                      )}
                     </View>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            <Separator />
+
+            {/* ════════════ DIFFICULTY ════════════ */}
+            <View style={styles.difficultySection}>
+              <Text style={styles.sectionTitle}>
+                Difficulté : <Text style={styles.difficultyValue}>{recipe.difficulty || 'Facile'} 👌</Text>
+              </Text>
+            </View>
+
+            <Separator />
+
+            {/* ════════════ TIMERS ════════════ */}
+            <View style={styles.timersSection}>
+              <DetailCircularTimer time={recipe.prepTime || recipe.times?.prep || recipe.duration || 25} label="Préparation" />
+              <DetailCircularTimer time={recipe.cookTime || recipe.times?.bake || 12} label="Cuisson" />
+              <DetailCircularTimer time={recipe.restTime || recipe.times?.rest || 0} label="Repos" />
+            </View>
+
+            <Separator />
+
+            {/* ════════════ INGREDIENTS ════════════ */}
+            <View style={styles.ingredientsSection}>
+              <Text style={styles.sectionTitle}>Ingrédients</Text>
+
+              {/* Servings Adjuster */}
+              <View style={styles.servingsRow}>
+                <Text style={styles.servingsLabel}>{servings} Portions</Text>
+                <View style={styles.servingsControls}>
+                  <TouchableOpacity
+                    style={styles.servingsBtn}
+                    onPress={() => setServings(s => Math.max(1, s - 1))}
+                  >
+                    <Ionicons name="remove" size={20} color={servings <= 1 ? '#CCC' : '#1A1A1A'} />
+                  </TouchableOpacity>
+                  <Text style={styles.servingsValue}>{servings}</Text>
+                  <TouchableOpacity
+                    style={[styles.servingsBtn, styles.servingsBtnPlus]}
+                    onPress={() => setServings(s => s + 1)}
+                  >
+                    <Ionicons name="add" size={20} color="#1A1A1A" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Ingredient Rows */}
+              {calculatedIngredients.length > 0 ? (
+                calculatedIngredients.map((ing) => (
+                  <View key={ing.id} style={styles.ingredientRow}>
+                    <Text style={styles.ingredientAmount}>
+                      {ing.amount > 0 ? ing.amount : ''} {ing.unit}
+                    </Text>
+                    <Text style={styles.ingredientName}>{ing.name}</Text>
+                  </View>
+                ))
+              ) : (
+                <View style={styles.noIngredients}>
+                  <Text style={styles.noIngredientsText}>
+                    Les ingrédients seront ajoutés prochainement.
+                  </Text>
+                </View>
+              )}
+
+              {/* Add to Shopping List */}
+              <TouchableOpacity
+                style={[styles.addToListBtn, inList && styles.inListBtn]}
+                onPress={handleAddToShoppingList}
+              >
+                {inList ? (
+                  <>
+                    <Ionicons name="checkmark-circle" size={20} color="#145941" style={{ marginRight: 8 }} />
+                    <Text style={styles.inListText}>Dans ta liste → Acheter maintenant</Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="cart-outline" size={20} color="#FFF" style={{ marginRight: 8 }} />
+                    <Text style={styles.addToListText}>Ajouter à la liste de courses</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            <Separator />
+
+            {/* ════════════ UTENSILS ════════════ */}
+            {recipe.source !== 'themealdb' && (
+              <>
+                <View style={styles.utensilsSection}>
+                  <Text style={styles.sectionTitle}>Ustensiles</Text>
+                  <Text style={styles.utensilsText}>
+                    {recipe.utensils && recipe.utensils.length > 0
+                      ? recipe.utensils.join(', ')
+                      : 'bol, passoire, 2 cuillères en bois, batteur à main, cuillère à glace, plaque de cuisson, papier sulfurisé'
+                    }
+                  </Text>
+                </View>
+                <Separator />
+              </>
+            )}
+
+            {/* ════════════ NUTRITION ════════════ */}
+            {recipe.nutrition && (
+              <>
+                <View style={styles.nutritionSection}>
+                  <Text style={styles.sectionTitle}>Valeurs nutritionnelles par portion</Text>
+                  <View style={styles.nutritionGrid}>
+                    <View style={styles.nutritionItem}>
+                      <Text style={styles.nutritionLabel}>Cal</Text>
+                      <Text style={styles.nutritionValue}>{recipe.nutrition.calories || recipe.nutrition.cal || '—'}</Text>
+                    </View>
+                    <View style={styles.nutritionItem}>
+                      <Text style={styles.nutritionLabel}>Prot.</Text>
+                      <Text style={styles.nutritionValue}>{recipe.nutrition.protein ? `${recipe.nutrition.protein} g` : '—'}</Text>
+                    </View>
+                    <View style={styles.nutritionItem}>
+                      <Text style={styles.nutritionLabel}>Lipides</Text>
+                      <Text style={styles.nutritionValue}>{recipe.nutrition.fat ? `${recipe.nutrition.fat} g` : '—'}</Text>
+                    </View>
+                    <View style={styles.nutritionItem}>
+                      <Text style={styles.nutritionLabel}>Glucides</Text>
+                      <Text style={styles.nutritionValue}>{recipe.nutrition.carbs ? `${recipe.nutrition.carbs} g` : '—'}</Text>
+                    </View>
+                  </View>
+                </View>
+                <Separator />
+              </>
+            )}
+
+            <Separator />
+
+            {/* ════════════ ALL STEPS ════════════ */}
+            <View style={styles.stepsPreviewSection}>
+              <Text style={[styles.sectionTitle, { marginBottom: 16 }]}>
+                Préparation ({recipe.steps?.length || 0} étapes)
+              </Text>
+
+              {recipe.steps && recipe.steps.map((step, index) => (
+                <View key={step.id || index} style={styles.stepContainer}>
+                  <Text style={styles.stepNumberTitle}>Étape {index + 1}/{recipe.steps.length}</Text>
+
+                  {/* Step Image */}
+                  {step.image ? (
+                    <View style={styles.stepPreviewCard}>
+                      <Image source={typeof step.image === 'string' ? { uri: step.image } : step.image} style={styles.stepPreviewImage} contentFit="cover" />
+                    </View>
+                  ) : null}
+
+                  {/* Step Ingredients (Optional: list them if provided in data) */}
+                  {step.ingredients && step.ingredients.length > 0 && (
+                    <Text style={styles.stepIngredientsText}>
+                      Ingrédients : {
+                        step.ingredients.map(ingId => {
+                          const ing = calculatedIngredients.find(i => i.id === ingId);
+                          return ing ? `${ing.name}` : '';
+                        }).filter(Boolean).join(', ')
+                      }
+                    </Text>
                   )}
+
+                  {/* Step Instruction */}
+                  <Text style={styles.stepInstructionText}>{step.instruction || step.title}</Text>
                 </View>
               ))}
             </View>
-          )}
-        </View>
 
-        <Separator />
+            {/* Bottom spacer for the sticky button */}
+            <View style={{ height: 120 }} />
+          </Animated.ScrollView>
 
-        {/* ════════════ DIFFICULTY ════════════ */}
-        <View style={styles.difficultySection}>
-          <Text style={styles.sectionTitle}>
-            Difficulté : <Text style={styles.difficultyValue}>{recipe.difficulty || 'Facile'} 👌</Text>
-          </Text>
-        </View>
-
-        <Separator />
-
-        {/* ════════════ TIMERS ════════════ */}
-        <View style={styles.timersSection}>
-          <DetailCircularTimer time={recipe.prepTime || recipe.times?.prep || recipe.duration || 25} label="Préparation" />
-          <DetailCircularTimer time={recipe.cookTime || recipe.times?.bake || 12} label="Cuisson" />
-          <DetailCircularTimer time={recipe.restTime || recipe.times?.rest || 0} label="Repos" />
-        </View>
-
-        <Separator />
-
-        {/* ════════════ INGREDIENTS ════════════ */}
-        <View style={styles.ingredientsSection}>
-          <Text style={styles.sectionTitle}>Ingrédients</Text>
-          
-          {/* Servings Adjuster */}
-          <View style={styles.servingsRow}>
-            <Text style={styles.servingsLabel}>{servings} Portions</Text>
-            <View style={styles.servingsControls}>
-              <TouchableOpacity 
-                style={styles.servingsBtn} 
-                onPress={() => setServings(s => Math.max(1, s - 1))}
-              >
-                <Ionicons name="remove" size={20} color={servings <= 1 ? '#CCC' : '#1A1A1A'} />
+          {/* ════════════ STICKY HEADER (appears on scroll) ════════════ */}
+          <Animated.View style={[styles.stickyHeader, {
+            paddingTop: Math.max(insets.top, 8),
+            opacity: headerOpacity,
+            backgroundColor: theme.colors.card,
+            borderBottomColor: theme.colors.border
+          }]}>
+            <TouchableOpacity style={[styles.stickyHeaderBtn, { backgroundColor: theme.colors.background }]} onPress={() => navigation.goBack()}>
+              <Ionicons name="chevron-back" size={24} color={theme.colors.text} />
+            </TouchableOpacity>
+            <View style={styles.stickyHeaderRight}>
+              <TouchableOpacity style={[styles.stickyHeaderBtn, { backgroundColor: theme.colors.background }]} onPress={handleShare}>
+                <Ionicons name="share-social-outline" size={22} color={theme.colors.textSecondary} />
               </TouchableOpacity>
-              <Text style={styles.servingsValue}>{servings}</Text>
-              <TouchableOpacity 
-                style={[styles.servingsBtn, styles.servingsBtnPlus]} 
-                onPress={() => setServings(s => s + 1)}
+              <TouchableOpacity
+                style={[styles.stickyHeaderBtn, isFav && { backgroundColor: theme.colors.primary }]}
+                onPress={() => toggleFavorite(recipe)}
               >
-                <Ionicons name="add" size={20} color="#1A1A1A" />
+                <Ionicons name={isFav ? "heart" : "heart-outline"} size={22} color={isFav ? "#FFF" : theme.colors.primary} />
               </TouchableOpacity>
             </View>
-          </View>
+          </Animated.View>
 
-          {/* Ingredient Rows */}
-          {calculatedIngredients.length > 0 ? (
-            calculatedIngredients.map((ing) => (
-              <View key={ing.id} style={styles.ingredientRow}>
-                <Text style={styles.ingredientAmount}>
-                  {ing.amount > 0 ? ing.amount : ''} {ing.unit}
-                </Text>
-                <Text style={styles.ingredientName}>{ing.name}</Text>
-              </View>
-            ))
-          ) : (
-            <View style={styles.noIngredients}>
-              <Text style={styles.noIngredientsText}>
-                Les ingrédients seront ajoutés prochainement.
-              </Text>
-            </View>
-          )}
-
-          {/* Add to Shopping List */}
-          <TouchableOpacity 
-            style={[styles.addToListBtn, inList && styles.inListBtn]} 
-            onPress={handleAddToShoppingList}
-          >
-            {inList ? (
-              <>
-                <Ionicons name="checkmark-circle" size={20} color="#145941" style={{ marginRight: 8 }} />
-                <Text style={styles.inListText}>Dans ta liste → Acheter maintenant</Text>
-              </>
-            ) : (
-              <>
-                <Ionicons name="cart-outline" size={20} color="#FFF" style={{ marginRight: 8 }} />
-                <Text style={styles.addToListText}>Ajouter à la liste de courses</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        <Separator />
-
-        {/* ════════════ UTENSILS ════════════ */}
-        {recipe.source !== 'themealdb' && (
-          <>
-            <View style={styles.utensilsSection}>
-              <Text style={styles.sectionTitle}>Ustensiles</Text>
-              <Text style={styles.utensilsText}>
-                {recipe.utensils && recipe.utensils.length > 0 
-                  ? recipe.utensils.join(', ')
-                  : 'bol, passoire, 2 cuillères en bois, batteur à main, cuillère à glace, plaque de cuisson, papier sulfurisé'
-                }
-              </Text>
-            </View>
-            <Separator />
-          </>
-        )}
-
-        {/* ════════════ NUTRITION ════════════ */}
-        {recipe.nutrition && (
-          <>
-            <View style={styles.nutritionSection}>
-              <Text style={styles.sectionTitle}>Valeurs nutritionnelles par portion</Text>
-              <View style={styles.nutritionGrid}>
-                <View style={styles.nutritionItem}>
-                  <Text style={styles.nutritionLabel}>Cal</Text>
-                  <Text style={styles.nutritionValue}>{recipe.nutrition.calories || recipe.nutrition.cal || '—'}</Text>
-                </View>
-                <View style={styles.nutritionItem}>
-                  <Text style={styles.nutritionLabel}>Prot.</Text>
-                  <Text style={styles.nutritionValue}>{recipe.nutrition.protein ? `${recipe.nutrition.protein} g` : '—'}</Text>
-                </View>
-                <View style={styles.nutritionItem}>
-                  <Text style={styles.nutritionLabel}>Lipides</Text>
-                  <Text style={styles.nutritionValue}>{recipe.nutrition.fat ? `${recipe.nutrition.fat} g` : '—'}</Text>
-                </View>
-                <View style={styles.nutritionItem}>
-                  <Text style={styles.nutritionLabel}>Glucides</Text>
-                  <Text style={styles.nutritionValue}>{recipe.nutrition.carbs ? `${recipe.nutrition.carbs} g` : '—'}</Text>
-                </View>
-              </View>
-            </View>
-            <Separator />
-          </>
-        )}
-
-        <Separator />
-
-        {/* ════════════ ALL STEPS ════════════ */}
-        <View style={styles.stepsPreviewSection}>
-          <Text style={[styles.sectionTitle, { marginBottom: 16 }]}>
-            Préparation ({recipe.steps?.length || 0} étapes)
-          </Text>
-          
-          {recipe.steps && recipe.steps.map((step, index) => (
-            <View key={step.id || index} style={styles.stepContainer}>
-              <Text style={styles.stepNumberTitle}>Étape {index + 1}/{recipe.steps.length}</Text>
-              
-              {/* Step Image */}
-              {step.image ? (
-                <View style={styles.stepPreviewCard}>
-                  <Image source={typeof step.image === 'string' ? { uri: step.image } : step.image} style={styles.stepPreviewImage} contentFit="cover" />
-                </View>
-              ) : null}
-
-              {/* Step Ingredients (Optional: list them if provided in data) */}
-              {step.ingredients && step.ingredients.length > 0 && (
-                <Text style={styles.stepIngredientsText}>
-                  Ingrédients : {
-                    step.ingredients.map(ingId => {
-                      const ing = calculatedIngredients.find(i => i.id === ingId);
-                      return ing ? `${ing.name}` : '';
-                    }).filter(Boolean).join(', ')
-                  }
-                </Text>
-              )}
-              
-              {/* Step Instruction */}
-              <Text style={styles.stepInstructionText}>{step.instruction || step.title}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Bottom spacer for the sticky button */}
-        <View style={{ height: 120 }} />
-      </Animated.ScrollView>
-
-      {/* ════════════ STICKY HEADER (appears on scroll) ════════════ */}
-      <Animated.View style={[styles.stickyHeader, { 
-        paddingTop: Math.max(insets.top, 8), 
-        opacity: headerOpacity,
-        backgroundColor: theme.colors.card,
-        borderBottomColor: theme.colors.border
-      }]}>
-        <TouchableOpacity style={[styles.stickyHeaderBtn, { backgroundColor: theme.colors.background }]} onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
-        <View style={styles.stickyHeaderRight}>
-          <TouchableOpacity style={[styles.stickyHeaderBtn, { backgroundColor: theme.colors.background }]} onPress={handleShare}>
-            <Ionicons name="share-social-outline" size={22} color={theme.colors.textSecondary} />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.stickyHeaderBtn, isFav && { backgroundColor: theme.colors.primary }]} 
-            onPress={() => toggleFavorite(recipe)}
-          >
-            <Ionicons name={isFav ? "heart" : "heart-outline"} size={22} color={isFav ? "#FFF" : theme.colors.primary} />
-          </TouchableOpacity>
-        </View>
-      </Animated.View>
-
-      {/* ════════════ STICKY FOOTER (Start Cooking) ════════════ */}
-      <Animated.View style={[
-        styles.stickyFooter, 
-        { 
-          paddingBottom: Math.max(insets.bottom, 16),
-          transform: [{ translateY: footerTranslateY }]
-        }
-      ]}>
-        <TouchableOpacity style={styles.startCookingBtn} onPress={handleStartCooking}>
-          <Text style={styles.startCookingText}>Commencer la cuisson !</Text>
-        </TouchableOpacity>
-      </Animated.View>
+          {/* ════════════ STICKY FOOTER (Start Cooking) ════════════ */}
+          <Animated.View style={[
+            styles.stickyFooter,
+            {
+              paddingBottom: Math.max(insets.bottom, 16),
+              transform: [{ translateY: footerTranslateY }]
+            }
+          ]}>
+            <TouchableOpacity style={styles.startCookingBtn} onPress={handleStartCooking}>
+              <Text style={styles.startCookingText}>Commencer la cuisson !</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </>
+      )}
     </View>
   );
 }

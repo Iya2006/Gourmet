@@ -61,10 +61,12 @@ export default function NotificationsScreen({ navigation }) {
       }
     }
 
-    // Navigation si data.recipeId existe (ex: title de la recette ou ID)
-    if (item.data && item.data.recipeId) {
-      navigation.navigate('Details', { recipeTitle: item.data.recipeId }); 
-      // Note: Assurez-vous que DetailsScreen peut chercher par recipeTitle si l'ID n'est pas passé
+    // Navigation si data.recipeId existe
+    if (item.data && (item.data.recipeId || item.data.recipeTitle)) {
+      navigation.navigate('Details', { 
+        recipeId: item.data.recipeId,
+        recipeTitle: item.data.recipeTitle || item.data.recipeId // Fallback for old notifications
+      }); 
     }
   };
 

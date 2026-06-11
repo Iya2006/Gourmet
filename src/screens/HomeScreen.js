@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   Dimensions, Animated, RefreshControl, StyleSheet as RN, Platform
@@ -121,12 +121,62 @@ export default function HomeScreen({ navigation }) {
 
   const combinedLatest = [...recipes].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 6);
 
-  // ── Extension IA Culinaire (Réelle) ──────────────────────────────────────────
-  const aiRecommendations = [...recipes]
-    .filter(r => r.category === 'Africaine' || r.category === 'Guinéenne' || r.difficulty === 'Moyen')
-    .slice(0, 5);
+  // ── Extension IA Culinaire (Intelligente basée sur les interactions) ──────────────────────────────
+  /**
+   * Calcule un score de recommandation IA pour chaque recette basé sur :
+   * - Les likes (40%)
+   * - Les vues (20%)
+   * - Les ratings/évaluations (20%)
+   * - Les cooks/fois cuisinée (20%)
+   * 
+   * Tient compte aussi des préférences utilisateur (catégories favorites)
+   */
+  const calculateRecommendationScore = (recipe) => {
+    const likes = recipe.likes || 0;
+    const views = recipe.views || 0;
+    const rating = recipe.rating || 0;
+    const cooks = recipe.cooks || 0;
 
-  // ── Animation header disparaît au scroll ──────────────────────────────────
+    // Normaliser les scores (0-1)
+    const allLikes = recipes.map(r => r.likes || 0);
+    const allViews = recipes.map(r => r.views || 0);
+    const allCooks = recipes.map(r => r.cooks || 0);
+
+    const maxLikes = Math.max(...allLikes, 1);
+    const maxViews = Math.max(...allViews, 1);
+    const maxCooks = Math.max(...allCooks, 1);
+
+    const normalizedLikes = likes / maxLikes;
+    const normalizedViews = views / maxViews;
+    const normalizedRating = rating / 5; // Rating sur 5 (scale 0-1)
+    const normalizedCooks = cooks / maxCooks;
+
+    // Pondération (40%, 20%, 20%, 20%)
+    const engagementScore = (normalizedLikes * 0.40) +
+      (normalizedViews * 0.20) +
+      (normalizedRating * 0.20) +
+      (normalizedCooks * 0.20);
+
+    // Bonus si la catégorie ou les tags correspondent aux préférences utilisateur
+    const userFavoriteCategories = ['Africain', 'Guinéenne', 'Africaine', 'Healthy', 'Végétarien'];
+    const categoryBonus = (recipe.category && userFavoriteCategories.includes(recipe.category)) ? 0.15 : 0;
+    const tagsBonus = (recipe.tags && recipe.tags.some(t => userFavoriteCategories.includes(t))) ? 0.10 : 0;
+
+    // Score de base pour les nouvelles recettes (même sans interactions)
+    const baseScore = 0.05;
+
+    return engagementScore + categoryBonus + tagsBonus + baseScore;
+  };
+
+  // Générer les recommandations IA
+  const aiRecommendations = useMemo(() => {
+    return [...recipes]
+      .map(r => ({ ...r, aiScore: calculateRecommendationScore(r) }))
+      .sort((a, b) => b.aiScore - a.aiScore)
+      .slice(0, 5);
+  }, [recipes]);
+
+  // ── Animation header disparaît au scroll ──────────────────────────────
   const headerTranslateY = scrollY.interpolate({
     inputRange: [0, 100],
     outputRange: [0, -60],
@@ -244,7 +294,7 @@ export default function HomeScreen({ navigation }) {
         <SafeAreaView edges={['top']} />
         <View style={[styles.topTabs, { justifyContent: 'space-between', paddingHorizontal: 20 }]}>
           <Text style={[styles.topTabText, styles.topTabTextActive]}>Choix de l'éditeur</Text>
-          
+
           <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={styles.bellContainer}>
             <Ionicons name="notifications-outline" size={24} color={colors.text} />
             {unreadCount > 0 && (
@@ -280,9 +330,24 @@ export default function HomeScreen({ navigation }) {
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>✨ Recommandé pour vous (IA)</Text>
               </View>
-              <Text style={{ paddingHorizontal: 20, marginBottom: 12, color: colors.textSecondary, fontSize: 13 }}>
-                Basé sur vos préférences pour les plats épicés et africains.
-              </Text>
+              <View style={{ paddingHorizontal: 20, marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Ionicons name="heart-outline" size={14} color={colors.textSecondary} />
+                  <Text style={{ color: colors.textSecondary, fontSize: 12 }}>likes</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Ionicons name="eye-outline" size={14} color={colors.textSecondary} />
+                  <Text style={{ color: colors.textSecondary, fontSize: 12 }}>vues</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Ionicons name="star-outline" size={14} color={colors.textSecondary} />
+                  <Text style={{ color: colors.textSecondary, fontSize: 12 }}>ratings</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Ionicons name="restaurant-outline" size={14} color={colors.textSecondary} />
+                  <Text style={{ color: colors.textSecondary, fontSize: 12 }}>cuisinées</Text>
+                </View>
+              </View>
               <FlatList
                 data={aiRecommendations}
                 keyExtractor={item => item.id + '-ai'}

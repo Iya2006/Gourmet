@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, Dimensions,
   Modal, TextInput, Animated, PanResponder, ScrollView, StatusBar
@@ -168,10 +168,18 @@ export default function CookbookRecipesScreen({ route, navigation }) {
 
   const { filteredRecipes: allRecipesFromContext } = useRecipeContext();
 
-  const cookbook = cookbooks.find(c => c.id === cookbookId);
-  const recipes = cookbookId === 'cb_favorites'
-    ? favorites
-    : (cookbook ? allRecipesFromContext.filter(r => cookbook.recipeIds.includes(r.id)) : []);
+  const cookbook = useMemo(
+    () => cookbooks.find(c => c.id === cookbookId),
+    [cookbooks, cookbookId]
+  );
+
+  const recipes = useMemo(() => {
+    if (cookbookId === 'cb_favorites') {
+      return favorites;
+    }
+    if (!cookbook) return [];
+    return allRecipesFromContext.filter(r => cookbook.recipeIds && cookbook.recipeIds.includes(r.id));
+  }, [cookbookId, favorites, cookbook, allRecipesFromContext]);
 
   // Action sheet state
   const [actionVisible, setActionVisible] = useState(false);
@@ -233,7 +241,11 @@ export default function CookbookRecipesScreen({ route, navigation }) {
   const handleSave = async () => {
     await saveRecipeToCookbooks(selectedRecipe.current, checkedIds);
     showToast('✓ Enregistré dans le cookbook !');
-    // Don't close the modal — user sees live update and can drag to dismiss
+    // Close the modal after 1 second so user sees the live update
+    setTimeout(() => {
+      setMoveVisible(false);
+      setShowNewInput(false);
+    }, 1000);
   };
 
   const handleCreateBook = async () => {
@@ -294,8 +306,8 @@ export default function CookbookRecipesScreen({ route, navigation }) {
           {chefAvatar
             ? <Image source={{ uri: chefAvatar }} style={styles.chefAvatar} contentFit="cover" />
             : <View style={[styles.chefAvatar, styles.chefAvatarFallback]}>
-                <Ionicons name="person" size={13} color="#AAA" />
-              </View>
+              <Ionicons name="person" size={13} color="#AAA" />
+            </View>
           }
           <Text style={styles.chefName} numberOfLines={1}>{chefName}</Text>
           <TouchableOpacity
@@ -337,10 +349,6 @@ export default function CookbookRecipesScreen({ route, navigation }) {
             showsVerticalScrollIndicator={false}
           />
         )}
-
-        <TouchableOpacity style={[styles.fab, { bottom: Math.max(insets.bottom + 8, 24) }]} activeOpacity={0.9}>
-          <Ionicons name="add" size={30} color="#FFF" />
-        </TouchableOpacity>
       </SafeAreaView>
 
       {/* ── Action Sheet: Move / Delete ── */}
@@ -405,7 +413,7 @@ export default function CookbookRecipesScreen({ route, navigation }) {
           )}
 
           {/* Cookbook list */}
-          {cookbooks.map(cb => {
+          {cookbooks.filter(cb => cb.id !== 'cb_imported').map(cb => {
             const thumb = getCookbookThumb(cb);
             const count = cb.id === 'cb_favorites' ? favorites.length : (cb.recipeIds?.length || 0);
             const checked = checkedIds.includes(cb.id);

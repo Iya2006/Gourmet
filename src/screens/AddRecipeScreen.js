@@ -160,13 +160,14 @@ export default function AddRecipeScreen({ navigation }) {
         createdAt: new Date().toISOString(),
       };
 
-      await addDoc(collection(db, 'recipes'), recipeData);
+      const docRef = await addDoc(collection(db, 'recipes'), recipeData);
 
-      // Envoyer une notification push à tous les utilisateurs qui ont activé les notifications
+      // Envoyer une notification push à tous les utilisateurs qui ont activé les notifications, sauf l'auteur
       await sendPushNotificationToAllSubscribers(
         "Nouvelle Recette ! 🍳",
         `${recipeData.authorName} a publié "${recipeData.title}". Venez la découvrir !`,
-        { recipeId: recipeData.title } // On pourrait passer l'id retourné par addDoc
+        { recipeId: docRef.id, recipeTitle: recipeData.title }, 
+        user.uid
       );
 
       Alert.alert(
