@@ -143,19 +143,6 @@ export default function LoginScreen({ navigation }) {
           </Text>
         </TouchableOpacity>
 
-        {/* Admin Access (Hidden or just for dev for now) */}
-        <TouchableOpacity 
-          style={styles.adminButton}
-          onPress={() => {
-            navigation.replace('AdminDashboard');
-          }}
-          disabled={isLoading}
-        >
-          <Ionicons name="shield-checkmark-outline" size={16} color={colors.textSecondary} />
-          <Text style={styles.adminText}>
-            Accès Administrateur
-          </Text>
-        </TouchableOpacity>
       </KeyboardAvoidingView>
 
       {/* Loading Overlay */}
