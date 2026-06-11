@@ -8,9 +8,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppTheme } from '../theme';
 import { useAuthStore } from '../store/authStore';
 import { useThemeStore } from '../store/themeStore';
+import { registerForPushNotificationsAsync, savePushTokenToFirestore, updateNotificationPreference } from '../services/notificationService';
 
 export default function ProfileScreen() {
-  const { user, userProfile, preferences, updatePreferences, signOut } = useAuthStore();
+  const { user, userProfile, preferences, updatePreferences, signOut, setUserProfile } = useAuthStore();
   const navigation = useNavigation();
   const { colors, isDarkMode } = useAppTheme();
   const { toggleTheme, loadTheme } = useThemeStore();
@@ -209,7 +210,30 @@ export default function ProfileScreen() {
           <View style={[styles.card, { backgroundColor: colors.card }]}>
             <SettingRow icon="language-outline" title={t('language')} value={currentLanguageLabel} onPress={() => setLanguageModalVisible(true)} />
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
-            <SettingRow icon="notifications-outline" title={t('notifications')} hasSwitch switchValue={true} onValueChange={() => {}} />
+            <SettingRow 
+              icon="notifications-outline" 
+              title={t('notifications')} 
+              hasSwitch 
+              switchValue={userProfile?.notificationsEnabled ?? false} 
+              onValueChange={async (val) => {
+                // Update local state optimistic (we would need a setter in authStore, but we can just let firestore listener sync it, or update it manually. 
+                // We'll update firestore directly. The onAuthStateChanged listener might not catch arbitrary doc updates unless we use onSnapshot.
+                // Since userProfile is fetched once on auth state change in authStore, we should update it locally too or re-fetch.
+                if (val) {
+                  const token = await registerForPushNotificationsAsync();
+                  if (token) {
+                    await savePushTokenToFirestore(user.uid, token, true);
+                    useAuthStore.setState((state) => ({ userProfile: { ...state.userProfile, notificationsEnabled: true, pushToken: token } }));
+                    Alert.alert("Notifications", "Les notifications ont été activées avec succès !");
+                  } else {
+                    Alert.alert("Erreur", "Impossible d'activer les notifications (Permission refusée ou appareil non supporté).");
+                  }
+                } else {
+                  await updateNotificationPreference(user.uid, false);
+                  useAuthStore.setState((state) => ({ userProfile: { ...state.userProfile, notificationsEnabled: false } }));
+                }
+              }} 
+            />
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
             <SettingRow 
               icon="moon-outline" 

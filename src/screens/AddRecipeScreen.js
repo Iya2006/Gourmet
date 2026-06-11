@@ -7,6 +7,7 @@ import { db } from '../services/firebaseConfig';
 import { useAuthStore } from '../store/authStore';
 import { useAppTheme } from '../theme';
 import * as ImagePicker from 'expo-image-picker';
+import { sendPushNotificationToAllSubscribers } from '../services/notificationService';
 
 export default function AddRecipeScreen({ navigation }) {
   const { user, userProfile } = useAuthStore();
@@ -160,6 +161,13 @@ export default function AddRecipeScreen({ navigation }) {
       };
 
       await addDoc(collection(db, 'recipes'), recipeData);
+
+      // Envoyer une notification push à tous les utilisateurs qui ont activé les notifications
+      await sendPushNotificationToAllSubscribers(
+        "Nouvelle Recette ! 🍳",
+        `${recipeData.authorName} a publié "${recipeData.title}". Venez la découvrir !`,
+        { recipeId: recipeData.title } // On pourrait passer l'id retourné par addDoc
+      );
 
       Alert.alert(
         "Succès 🎉", 
