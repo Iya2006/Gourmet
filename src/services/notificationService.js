@@ -14,6 +14,7 @@
 
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { collection, getDocs, doc, updateDoc, query, where } from 'firebase/firestore';
 import { db } from './firebaseConfig';
@@ -65,8 +66,12 @@ export async function registerForPushNotificationsAsync() {
 
   // Obtenir le token Expo Push
   try {
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+    if (!projectId) {
+      console.warn("⚠️ Projet EAS non configuré. Les notifications Push nécessitent 'eas init' avec un vrai projectId UUID.");
+    }
     const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId: 'recipe-app-54', // slug de votre app
+      projectId: projectId, // DOIT être un UUID valide (généré via eas init)
     });
     return tokenData.data;
   } catch (e) {
