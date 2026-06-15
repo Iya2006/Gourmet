@@ -58,25 +58,17 @@ export function RecipeProvider({ children }) {
     let result = recipes;
 
     // Filtre par recherche intelligente (CDC §3)
-    // Si l'utilisateur tape une recherche, on ignore les autres filtres pour chercher partout
     if (search.trim()) {
       const q = normalize(search.trim());
       const qLen = q.length;
 
-      return recipes.filter(r => {
+      result = result.filter(r => {
         const titleNorm = normalize(r.title);
         const catNorm = normalize(r.category);
 
-        // Toujours chercher dans le titre
         if (titleNorm.includes(q)) return true;
-
-        // Chercher dans les tags seulement si query >= 2 chars
         if (qLen >= 2 && r.tags?.some(t => normalize(t).includes(q))) return true;
-
-        // Chercher dans la catégorie seulement si query >= 2 chars
         if (qLen >= 2 && catNorm.includes(q)) return true;
-
-        // Chercher dans les ingrédients seulement si query >= 3 chars
         if (qLen >= 3 && r.ingredients?.some(i => normalize(i.name).includes(q))) return true;
 
         return false;
@@ -85,9 +77,10 @@ export function RecipeProvider({ children }) {
 
     // Filtre par catégorie (CDC §3)
     if (selectedCategory !== 'Tous') {
+      const cNorm = normalize(selectedCategory);
       result = result.filter(r =>
-        r.category === selectedCategory ||
-        r.tags?.some(t => t === selectedCategory)
+        normalize(r.category).includes(cNorm) ||
+        r.tags?.some(t => normalize(t).includes(cNorm))
       );
     }
 
@@ -110,33 +103,8 @@ export function RecipeProvider({ children }) {
       });
     }
 
-    // Filtre global par régimes (Profil de l'utilisateur)
-    if (preferences?.diets && preferences.diets.length > 0) {
-      result = result.filter(r => {
-        if (!r.tags) return false;
-        // La recette doit inclure au moins l'un des régimes sélectionnés, ou tous ?
-        // Souvent, si on sélectionne "Vegan" et "Sans gluten", on veut voir les recettes qui sont soit vegan soit sans gluten.
-        // Ou bien on veut les recettes qui sont à la fois vegan ET sans gluten.
-        // Faisons une intersection stricte (ET) : une recette doit respecter TOUS les régimes cochés.
-        return preferences.diets.every(diet => 
-          r.tags.map(normalize).includes(normalize(diet))
-        );
-      });
-    }
-
-    // Filtre global par cuisines (Profil de l'utilisateur)
-    if (preferences?.cuisines && preferences.cuisines.length > 0) {
-      result = result.filter(r => {
-        // La recette doit appartenir à l'une des cuisines sélectionnées (OU)
-        return preferences.cuisines.some(cuisine => {
-          const c = normalize(cuisine);
-          return normalize(r.category) === c || (r.tags && r.tags.map(normalize).includes(c));
-        });
-      });
-    }
-
     return result;
-  }, [recipes, search, selectedCategory, selectedDifficulty, selectedDuration, preferences]);
+  }, [recipes, search, selectedCategory, selectedDifficulty, selectedDuration]);
 
   // ── Actions ──────────────────────────────────────────────────────
   const resetFilters = useCallback(() => {
