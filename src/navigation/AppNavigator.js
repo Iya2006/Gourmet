@@ -90,7 +90,23 @@ export default function AppNavigator() {
   const { user, userProfile, isLoading, initAuthListener } = useAuthStore();
   const { colors } = useAppTheme();
   const [showSplash, setShowSplash] = useState(true);
-  const lastNotificationResponse = Notifications.useLastNotificationResponse();
+  const [lastNotificationResponse, setLastNotificationResponse] = useState(null);
+
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+
+    Notifications.getLastNotificationResponseAsync().then(response => {
+      if (response) {
+        setLastNotificationResponse(response);
+      }
+    }).catch(() => {});
+
+    const subscription = Notifications.addNotificationResponseReceivedListener(response => {
+      setLastNotificationResponse(response);
+    });
+
+    return () => subscription.remove();
+  }, []);
 
   useEffect(() => {
     const unsubscribe = initAuthListener();
